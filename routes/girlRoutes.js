@@ -15,6 +15,7 @@ import {
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { createUploader } from "../utils/multerUpload.js";
 
+
 const router = express.Router();
 
 /* =============================
@@ -22,9 +23,13 @@ const router = express.Router();
 ============================= */
 const girlUpload = createUploader("girls");
 
+
+
 /* =============================
    ADMIN ROUTES
 ============================= */
+
+
 
 router.post(
   "/add",
