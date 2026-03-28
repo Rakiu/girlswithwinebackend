@@ -67,7 +67,7 @@ app.use("/api/girls", girlRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/blogs", blogRoutes);
-// app.use("/", redirectRoutes);
+app.use("/", redirectRoutes);
 /* 🔥 NEW UPLOAD ROUTE */
 app.use("/api/upload", uploadRoutes);
 
