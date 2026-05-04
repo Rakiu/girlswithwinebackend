@@ -7,7 +7,7 @@ import Girl from "../models/Girl.js";
 
 export const generateSitemap = async (req, res) => {
   try {
-    const baseUrl =  "https://girlswithwine.com";
+    const baseUrl = "https://girlswithwine.com";
 
     // 🔥 parallel fetch (faster)
     const [cities, blogs, girls] = await Promise.all([
@@ -51,17 +51,17 @@ export const generateSitemap = async (req, res) => {
     /* =============================
        GIRL
     ============================= */
-   girls.forEach((girl) => {
-  if (!girl?.permalink) return;
+    girls.forEach((girl) => {
+      if (!girl?.permalink) return;
 
-  xml += `
+      xml += `
 <url>
   <loc>${baseUrl}/${girl.permalink}</loc>
   <lastmod>${girl.updatedAt?.toISOString?.() || ""}</lastmod>
   <changefreq>daily</changefreq>
   <priority>0.9</priority>
 </url>`;
-});
+    });
 
     /* =============================
        BLOG
