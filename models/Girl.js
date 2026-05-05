@@ -26,14 +26,19 @@ const GirlSchema = new mongoose.Schema(
       },
     ],
 
-    /* 🔥 MAIN SEO FIELD */
+    // ✅ SUBCITY
+    subCity: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SubCity",
+    },
+
+    /* 🔥 MAIN SEO FIELD (CLEAN) */
     permalink: {
       type: String,
       required: true,
       unique: true,
       lowercase: true,
       trim: true,
-      index: true,
     },
 
     description: String,
@@ -95,23 +100,18 @@ const GirlSchema = new mongoose.Schema(
    HELPERS
 ============================= */
 
+// 📞 phone formatter
 const formatNumber = (num) => {
   if (!num) return "";
-  return num.startsWith("+91") ? num : `+91${num}`;
+  return num.startsWith("+91") ? num : `+91${num.replace(/\D/g, "")}`;
 };
 
-const generateSlug = (permalink, name) => {
-  const cleanPermalink = slugify(permalink || "", {
+// 🔥 CLEAN SLUG (ONLY PERMALINK)
+const generateSlug = (permalink) => {
+  return slugify(permalink || "", {
     lower: true,
     strict: true,
   });
-
-  const cleanName = slugify(name || "", {
-    lower: true,
-    strict: true,
-  });
-
-  return `${cleanPermalink}-${cleanName}`;
 };
 
 /* =============================
@@ -120,7 +120,7 @@ const generateSlug = (permalink, name) => {
 
 GirlSchema.pre("save", async function (next) {
   try {
-    // ✅ FORMAT NUMBERS
+    // ✅ PHONE FORMAT
     if (this.phoneNumber) {
       this.phoneNumber = formatNumber(this.phoneNumber);
     }
@@ -133,16 +133,15 @@ GirlSchema.pre("save", async function (next) {
       this.whatsappNumber = this.phoneNumber;
     }
 
-    // ✅ SAFETY (NULL SLUG FIX)
+    // ✅ fallback permalink
     if (!this.permalink && this.name) {
       this.permalink = this.name;
     }
 
-    // ✅ SLUG GENERATE
-    if (this.isModified("permalink") || this.isModified("name")) {
-      let baseSlug = generateSlug(this.permalink, this.name);
+    // 🔥 GENERATE CLEAN SLUG
+    if (this.isModified("permalink")) {
+      let baseSlug = generateSlug(this.permalink);
 
-      // ⚠️ fallback safety
       if (!baseSlug) {
         baseSlug = `girl-${Date.now()}`;
       }
@@ -150,6 +149,7 @@ GirlSchema.pre("save", async function (next) {
       let finalSlug = baseSlug;
       let counter = 1;
 
+      // ✅ UNIQUE CHECK
       while (
         await mongoose.models.Girl.findOne({
           permalink: finalSlug,
@@ -182,11 +182,8 @@ GirlSchema.pre("findOneAndUpdate", async function (next) {
   try {
     const update = this.getUpdate();
 
-    if (update.permalink || update.name) {
-      let baseSlug = generateSlug(
-        update.permalink || "",
-        update.name || ""
-      );
+    if (update.permalink) {
+      let baseSlug = generateSlug(update.permalink);
 
       if (!baseSlug) {
         baseSlug = `girl-${Date.now()}`;
@@ -217,9 +214,8 @@ GirlSchema.pre("findOneAndUpdate", async function (next) {
 });
 
 /* =============================
-   INDEX
+   EXPORT
 ============================= */
 
-GirlSchema.index({ permalink: 1 });
-
-export default mongoose.models.Girl || mongoose.model("Girl", GirlSchema);
+export default mongoose.models.Girl ||
+  mongoose.model("Girl", GirlSchema);

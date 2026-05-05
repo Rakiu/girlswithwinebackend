@@ -3,6 +3,7 @@ import express from "express";
 import {
   addGirl,
   getGirlsByCity,
+  getGirlsBySubCity,   // ✅ NEW
   deleteGirl,
   toggleGirlStatus,
   getAllGirls,
@@ -15,21 +16,17 @@ import {
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { createUploader } from "../utils/multerUpload.js";
 
-
 const router = express.Router();
 
 /* =============================
-   MULTER UPLOADER
+   MULTER
 ============================= */
 const girlUpload = createUploader("girls");
-
 
 
 /* =============================
    ADMIN ROUTES
 ============================= */
-
-
 
 router.post(
   "/add",
@@ -42,7 +39,7 @@ router.post(
 );
 
 router.put(
-  "/:id",
+  "/update/:id", // ✅ better naming
   authMiddleware,
   girlUpload.fields([
     { name: "image", maxCount: 1 },
@@ -51,9 +48,10 @@ router.put(
   updateGirl
 );
 
-router.delete("/:id", authMiddleware, deleteGirl);
+router.delete("/delete/:id", authMiddleware, deleteGirl);
 
 router.patch("/status/:id", authMiddleware, toggleGirlStatus);
+
 
 /* =============================
    PUBLIC ROUTES
@@ -65,15 +63,18 @@ router.get("/all", getAllGirls);
 // ✅ 2. City wise
 router.get("/city/:cityId", getGirlsByCity);
 
-// ✅ 3. By ID
+// ✅ 3. SubCity wise (🔥 NEW)
+router.get("/subcity/:subCityId", getGirlsBySubCity);
+
+// ✅ 4. By ID (admin/debug)
 router.get("/details/:id", getGirlById);
 
-// ✅ 4. Old SEO (optional)
+// ✅ 5. Old SEO (optional)
 router.get("/slug/:seoSlug", getGirlBySlug);
 
+
 /* ====================================================
-   🔥 MAIN SEO ROUTE (PERMALINK BASED)
-   MUST BE LAST
+   🔥 MAIN SEO ROUTE (ALWAYS LAST)
 ==================================================== */
 
 router.get("/:permalink", getGirlByPermalink);

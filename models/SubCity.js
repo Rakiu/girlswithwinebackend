@@ -74,7 +74,7 @@ SubCitySchema.pre("save", function(next){
   }
 
   if (this.permalink && this.name) {
-    this.slug = `${this.permalink}-${slugify(this.name)}`;
+    this.slug = `${this.permalink}`;
   }
 
   if (!this.imageAlt && this.name) {
@@ -99,7 +99,7 @@ SubCitySchema.pre("findOneAndUpdate", function(next){
   }
 
   if (update.permalink && update.name) {
-    update.slug = `${update.permalink}-${slugify(update.name)}`;
+    update.slug = `${update.permalink}`;
     update.canonicalUrl = `https://girlswithwine.com/${update.slug}`;
   }
 

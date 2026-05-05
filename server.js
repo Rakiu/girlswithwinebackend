@@ -137,6 +137,7 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import redirectRoutes from "./routes/redirectRoutes.js";
 import sitemapRoutes from "./routes/sitemapRoutes.js";
 import subCityRoutes from "./routes/subCityRoutes.js";
+import faqRoutes from "./routes/faqRoutes.js";
 
 dotenv.config();
 
@@ -192,6 +193,7 @@ app.use("/api/contact", contactRoutes);
 app.use("/api/blogs", blogRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/subcities", subCityRoutes);
+app.use("/api/faqs", faqRoutes);
 
 // ✅ Redirect LAST
 app.use("/", redirectRoutes);
