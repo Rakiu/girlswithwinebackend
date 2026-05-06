@@ -1,6 +1,6 @@
 import Girl from "../models/Girl.js";
 import City from "../models/City.js";
-import SubCity from "../models/SubCity.js"; // ✅ ADD
+import SubCity from "../models/SubCity.js";
 import * as cheerio from "cheerio";
 import axios from "axios";
 import fs from "fs";
@@ -16,12 +16,14 @@ const formatNumber = (num) => {
 };
 
 const uploadDir = "uploads/girls";
+
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 const parseCity = (city) => {
   if (!city) return [];
+
   if (Array.isArray(city)) return city;
 
   if (typeof city === "string") {
@@ -32,6 +34,7 @@ const parseCity = (city) => {
       return [city];
     }
   }
+
   return [];
 };
 
@@ -40,32 +43,54 @@ const parseCity = (city) => {
 ============================= */
 
 const processEditorImages = async (html) => {
+
   if (!html) return "";
 
   const $ = cheerio.load(html);
+
   const tasks = [];
 
   $("img").each((_, img) => {
+
     const src = $(img).attr("src");
+
     if (!src) return;
 
-    const fileName = Date.now() + ".png";
+    if (src.includes("/uploads/girls/")) return;
+
+    const fileName =
+      `${Date.now()}-${Math.floor(Math.random() * 9999)}.png`;
+
     const savePath = path.join(uploadDir, fileName);
 
     if (src.startsWith("data:image")) {
-      const base64Data = src.replace(/^data:image\/\w+;base64,/, "");
+
+      const base64Data =
+        src.replace(/^data:image\/\w+;base64,/, "");
 
       tasks.push(
         new Promise((resolve) => {
-          fs.writeFileSync(savePath, Buffer.from(base64Data, "base64"));
-          $(img).attr("src", `/uploads/girls/${fileName}`);
+
+          fs.writeFileSync(
+            savePath,
+            Buffer.from(base64Data, "base64")
+          );
+
+          $(img).attr(
+            "src",
+            `https://girlswithwine.com/uploads/girls/${fileName}`
+          );
+
           resolve();
+
         })
       );
     }
+
   });
 
   await Promise.all(tasks);
+
   return $.html();
 };
 
@@ -74,55 +99,83 @@ const processEditorImages = async (html) => {
 ============================= */
 
 export const addGirl = async (req, res) => {
+
   try {
-    const baseUrl =
-      process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
 
     let imageUrl = "";
     let images = [];
 
+    // single image
     if (req.files?.image) {
-      imageUrl = `${baseUrl}/uploads/girls/${req.files.image[0].filename}`;
+
+      imageUrl =
+        `https://girlswithwine.com/uploads/girls/${req.files.image[0].filename}`;
+
     }
 
+    // multiple images
     if (req.files?.images) {
+
       images = req.files.images.map(
-        (file) => `${baseUrl}/uploads/girls/${file.filename}`
+        (file) =>
+          `https://girlswithwine.com/uploads/girls/${file.filename}`
       );
+
     }
 
-    const description = await processEditorImages(req.body.description);
+    const description =
+      await processEditorImages(req.body.description);
 
     const girl = await Girl.create({
+
       name: req.body.name,
       age: req.body.age,
       heading: req.body.heading,
 
       city: parseCity(req.body.city),
 
-      // ✅ SUBCITY ADD
-      subCity: req.body.subCity || null,
+      subCity:
+        req.body.subCity || null,
 
-      permalink: req.body.permalink || req.body.name,
+      permalink:
+        req.body.permalink || req.body.name,
 
       description,
+
       imageUrl,
       images,
 
-      phoneNumber: formatNumber(req.body.phoneNumber),
-      whatsappNumber: req.body.whatsappNumber
-        ? formatNumber(req.body.whatsappNumber)
-        : undefined,
+      phoneNumber:
+        formatNumber(req.body.phoneNumber),
 
-      seoKeywords: req.body.seoKeywords?.split(",") || [],
-      showOnHomepage: req.body.showOnHomepage === "true",
+      whatsappNumber:
+        req.body.whatsappNumber
+          ? formatNumber(req.body.whatsappNumber)
+          : undefined,
+
+      seoKeywords:
+        req.body.seoKeywords?.split(",") || [],
+
+      showOnHomepage:
+        req.body.showOnHomepage === "true",
+
     });
 
-    res.json({ message: "Girl created", data: girl });
+    res.json({
+      success: true,
+      message: "Girl created successfully",
+      data: girl
+    });
 
   } catch (err) {
-    res.status(500).json({ message: err.message });
+
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+
   }
+
 };
 
 /* =============================
@@ -203,40 +256,109 @@ export const getGirlsBySubCity = async (req, res) => {
 ============================= */
 
 export const updateGirl = async (req, res) => {
+
   try {
-    const existing = await Girl.findById(req.params.id);
-    if (!existing) return res.status(404).json({ message: "Not found" });
 
-    const updated = await Girl.findByIdAndUpdate(
-  req.params.id,
-  {
-    name: req.body.name,
-    age: req.body.age,
-    heading: req.body.heading,
+    const existing =
+      await Girl.findById(req.params.id);
 
-    city: parseCity(req.body.city),
+    if (!existing) {
+      return res.status(404).json({
+        message: "Girl not found"
+      });
+    }
 
-    subCity:
-      req.body.subCity &&
-      req.body.subCity !== "" &&
-      req.body.subCity !== "null"
-        ? req.body.subCity
-        : null,
+    let imageUrl =
+      existing.imageUrl;
 
-    permalink: req.body.permalink,
+    let images =
+      existing.images || [];
 
-    description: req.body.description,
-  },
-  { new: true }
-)
-  .populate("city")
-  .populate("subCity");
+    // single image update
+    if (req.files?.image) {
 
-    res.json(updated);
+      imageUrl =
+        `https://girlswithwine.com/uploads/girls/${req.files.image[0].filename}`;
+
+    }
+
+    // multiple images update
+    if (req.files?.images) {
+
+      images = req.files.images.map(
+        (file) =>
+          `https://girlswithwine.com/uploads/girls/${file.filename}`
+      );
+
+    }
+
+    const description =
+      req.body.description
+        ? await processEditorImages(req.body.description)
+        : existing.description;
+
+    const updated =
+      await Girl.findByIdAndUpdate(
+
+        req.params.id,
+
+        {
+          name: req.body.name,
+          age: req.body.age,
+          heading: req.body.heading,
+
+          city: parseCity(req.body.city),
+
+          subCity:
+            req.body.subCity &&
+            req.body.subCity !== "" &&
+            req.body.subCity !== "null"
+              ? req.body.subCity
+              : null,
+
+          permalink: req.body.permalink,
+
+          description,
+
+          imageUrl,
+          images,
+
+          phoneNumber:
+            formatNumber(req.body.phoneNumber),
+
+          whatsappNumber:
+            req.body.whatsappNumber
+              ? formatNumber(req.body.whatsappNumber)
+              : undefined,
+
+          seoKeywords:
+            req.body.seoKeywords?.split(",") || [],
+
+          showOnHomepage:
+            req.body.showOnHomepage === "true",
+        },
+
+        { new: true }
+
+      )
+        .populate("city")
+        .populate("subCity");
+
+    res.json({
+      success: true,
+      message: "Girl updated successfully",
+      data: updated
+    });
 
   } catch (err) {
-    res.status(500).json({ message: err.message });
+
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+
   }
+
 };
 
 /* =============================

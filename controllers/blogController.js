@@ -128,7 +128,7 @@ export const addBlog = async (req, res) => {
     if (req.file) {
 
       imageUrl =
-        `https://api4.girlswithwine.in/uploads/blogs/${req.file.filename}`;
+        `https://girlswithwine.com/uploads/blogs/${req.file.filename}`;
 
     }
 
