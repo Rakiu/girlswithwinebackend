@@ -208,23 +208,29 @@ export const updateGirl = async (req, res) => {
     if (!existing) return res.status(404).json({ message: "Not found" });
 
     const updated = await Girl.findByIdAndUpdate(
-      req.params.id,
-      {
-        name: req.body.name,
-        age: req.body.age,
-        heading: req.body.heading,
-        city: parseCity(req.body.city),
+  req.params.id,
+  {
+    name: req.body.name,
+    age: req.body.age,
+    heading: req.body.heading,
 
-        // ✅ SUBCITY UPDATE
-        subCity: req.body.subCity || existing.subCity,
+    city: parseCity(req.body.city),
 
-        permalink: req.body.permalink,
-        description: req.body.description,
-      },
-      { new: true }
-    )
-      .populate("city")
-      .populate("subCity");
+    subCity:
+      req.body.subCity &&
+      req.body.subCity !== "" &&
+      req.body.subCity !== "null"
+        ? req.body.subCity
+        : null,
+
+    permalink: req.body.permalink,
+
+    description: req.body.description,
+  },
+  { new: true }
+)
+  .populate("city")
+  .populate("subCity");
 
     res.json(updated);
 

@@ -169,7 +169,14 @@ export const getCityPage = async (req, res) => {
     const city = await City.findOne({
       slug: citySlug,
       status: "Active"
-    }).lean();
+    })
+
+      // ================= POPULATE SUBCITIES =================
+      .populate("subCities", "name slug")
+
+
+
+      .lean();
 
     if (!city) {
       return res.status(404).json({
@@ -191,13 +198,14 @@ export const getCityPage = async (req, res) => {
     });
 
   } catch (error) {
+
     res.status(500).json({
       message: error.message
     });
+
   }
 
 };
-
 
 // ------------------------------------------------
 // GET ALL CITIES
@@ -405,11 +413,20 @@ export const toggleCityStatus = async (req, res) => {
 // ------------------------------------------------
 // GET CITY BY ID
 // ------------------------------------------------
+// ------------------------------------------------
+// GET CITY BY ID
+// ------------------------------------------------
 export const getCityById = async (req, res) => {
 
   try {
 
-    const city = await City.findById(req.params.id);
+    const city = await City.findById(req.params.id)
+
+      // SUBCITY NAME + ID
+      .populate("subCities", "name slug")
+
+      // STATE NAME + ID (OPTIONAL)
+      
 
     if (!city) {
       return res.status(404).json({
@@ -420,9 +437,11 @@ export const getCityById = async (req, res) => {
     res.json(city);
 
   } catch (error) {
+
     res.status(500).json({
       message: error.message
     });
+
   }
 
 };
