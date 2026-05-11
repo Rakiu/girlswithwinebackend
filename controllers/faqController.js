@@ -1,121 +1,427 @@
 import Faq from "../models/Faq.js";
 
-/* ================= CREATE (BULK SUPPORT) ================= */
+/* =========================================================
+   CREATE FAQ
+========================================================= */
+
 export const addFaq = async (req, res) => {
   try {
-    // Agar frontend se array aa raha hai toh insertMany use hoga
-    // Agar single object hai toh create use hoga
+
     const data = req.body;
-    
+
+    // BULK CREATE
     if (Array.isArray(data)) {
+
       const faqs = await Faq.insertMany(data);
-      return res.status(201).json(faqs);
-    } else {
-      const faq = await Faq.create(data);
-      return res.status(201).json(faq);
+
+      return res.status(201).json({
+        success: true,
+        message: "FAQs created successfully",
+        faqs,
+      });
     }
+
+    // SINGLE CREATE
+    const faq = await Faq.create(data);
+
+    return res.status(201).json({
+      success: true,
+      message: "FAQ created successfully",
+      faq,
+    });
+
   } catch (err) {
-    res.status(500).json({ message: err.message });
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-/* ================= GET ALL ================= */
+/* =========================================================
+   GET ALL FAQ
+========================================================= */
+
 export const getFaqs = async (req, res) => {
   try {
-    // Admin panel ke liye saare FAQs (Active + Inactive) dikhana behtar hai
+
     const faqs = await Faq.find()
+
       .populate("city", "mainCity")
+
       .populate("subCity", "name")
+
       .populate("girl", "name")
-      .sort({ createdAt: -1 }); // Latest first
 
-    res.json(faqs);
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      faqs,
+    });
+
   } catch (err) {
-    res.status(500).json({ message: err.message });
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-/* ================= BY TYPE ================= */
-export const getFaqsByType = async (req, res) => {
+/* =========================================================
+   HOMEPAGE FAQ
+========================================================= */
+
+export const getHomepageFaqs = async (req, res) => {
   try {
-    const { type } = req.params;
-    const faqs = await Faq.find({ type, status: "Active" });
-    res.json(faqs);
+
+    const faqGroup = await Faq.findOne({
+      type: "homepage",
+      status: "Active",
+    });
+
+    if (!faqGroup) {
+
+      return res.status(200).json({
+        success: true,
+        faqs: [],
+      });
+    }
+
+    // ONLY HOMEPAGE FAQ
+    const visibleFaqs = faqGroup.faqs.filter(
+      (f) => f.showOn?.homepage === true
+    );
+
+    return res.status(200).json({
+      success: true,
+      faqs: visibleFaqs,
+    });
+
   } catch (err) {
-    res.status(500).json({ message: err.message });
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-/* ================= CITY ================= */
+/* =========================================================
+   CITY FAQ
+========================================================= */
+
 export const getFaqsByCity = async (req, res) => {
   try {
+
     const { cityId } = req.params;
-    const faqs = await Faq.find({ city: cityId, status: "Active" });
-    res.json(faqs);
+
+    const faqGroup = await Faq.findOne({
+      city: cityId,
+      status: "Active",
+    });
+
+    if (!faqGroup) {
+
+      return res.status(200).json({
+        success: true,
+        faqs: [],
+      });
+    }
+
+    const visibleFaqs = faqGroup.faqs.filter(
+      (f) => f.showOn?.city === true
+    );
+
+    return res.status(200).json({
+      success: true,
+      faqs: visibleFaqs,
+    });
+
   } catch (err) {
-    res.status(500).json({ message: err.message });
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-/* ================= SUBCITY ================= */
+/* =========================================================
+   SUBCITY FAQ
+========================================================= */
+
 export const getFaqsBySubCity = async (req, res) => {
   try {
+
     const { subCityId } = req.params;
-    const faqs = await Faq.find({ subCity: subCityId, status: "Active" });
-    res.json(faqs);
+
+    const faqGroup = await Faq.findOne({
+      subCity: subCityId,
+      status: "Active",
+    });
+
+    if (!faqGroup) {
+
+      return res.status(200).json({
+        success: true,
+        faqs: [],
+      });
+    }
+
+    const visibleFaqs = faqGroup.faqs.filter(
+      (f) => f.showOn?.subcity === true
+    );
+
+    return res.status(200).json({
+      success: true,
+      faqs: visibleFaqs,
+    });
+
   } catch (err) {
-    res.status(500).json({ message: err.message });
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-/* ================= GIRL ================= */
+/* =========================================================
+   GIRL PROFILE FAQ
+========================================================= */
+
 export const getFaqsByGirl = async (req, res) => {
   try {
+
     const { girlId } = req.params;
-    const faqs = await Faq.find({ girl: girlId, status: "Active" });
-    res.json(faqs);
+
+    const faqGroup = await Faq.findOne({
+      girl: girlId,
+      status: "Active",
+    });
+
+    if (!faqGroup) {
+
+      return res.status(200).json({
+        success: true,
+        faqs: [],
+      });
+    }
+
+    const visibleFaqs = faqGroup.faqs.filter(
+      (f) => f.showOn?.girl === true
+    );
+
+    return res.status(200).json({
+      success: true,
+      faqs: visibleFaqs,
+    });
+
   } catch (err) {
-    res.status(500).json({ message: err.message });
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-/* ================= UPDATE ================= */
+/* =========================================================
+   UPDATE FAQ
+========================================================= */
+
 export const updateFaq = async (req, res) => {
   try {
+
     const faq = await Faq.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true, runValidators: true }
+      {
+        new: true,
+        runValidators: true,
+      }
     );
-    if (!faq) return res.status(404).json({ message: "FAQ not found" });
-    res.json(faq);
+
+    if (!faq) {
+
+      return res.status(404).json({
+        success: false,
+        message: "FAQ not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "FAQ updated successfully",
+      faq,
+    });
+
   } catch (err) {
-    res.status(500).json({ message: err.message });
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-/* ================= DELETE ================= */
+/* =========================================================
+   DELETE FAQ
+========================================================= */
+
 export const deleteFaq = async (req, res) => {
   try {
-    const faq = await Faq.findByIdAndDelete(req.params.id);
-    if (!faq) return res.status(404).json({ message: "FAQ not found" });
-    res.json({ message: "FAQ deleted successfully" });
+
+    const faq = await Faq.findByIdAndDelete(
+      req.params.id
+    );
+
+    if (!faq) {
+
+      return res.status(404).json({
+        success: false,
+        message: "FAQ not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "FAQ deleted successfully",
+    });
+
   } catch (err) {
-    res.status(500).json({ message: err.message });
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-/* ================= TOGGLE STATUS ================= */
+/* =========================================================
+   TOGGLE STATUS
+========================================================= */
+
 export const toggleFaqStatus = async (req, res) => {
   try {
-    const faq = await Faq.findById(req.params.id);
-    if (!faq) return res.status(404).json({ message: "FAQ not found" });
 
-    faq.status = faq.status === "Active" ? "Inactive" : "Active";
+    const faq = await Faq.findById(
+      req.params.id
+    );
+
+    if (!faq) {
+
+      return res.status(404).json({
+        success: false,
+        message: "FAQ not found",
+      });
+    }
+
+    faq.status =
+      faq.status === "Active"
+        ? "Inactive"
+        : "Active";
+
     await faq.save();
 
-    res.json(faq);
+    return res.status(200).json({
+      success: true,
+      message: "FAQ status updated",
+      faq,
+    });
+
   } catch (err) {
-    res.status(500).json({ message: err.message });
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+/* =========================================================
+   GET FAQ BY TYPE
+========================================================= */
+
+export const getFaqsByType = async (req, res) => {
+  try {
+
+    const { type } = req.params;
+
+    const faqGroups = await Faq.find({
+      type,
+      status: "Active",
+    })
+
+      .populate("city", "mainCity")
+
+      .populate("subCity", "name")
+
+      .populate("girl", "name")
+
+      .sort({ createdAt: -1 });
+
+    const updatedFaqs = faqGroups.map(
+      (group) => {
+
+        let filteredFaqs = [];
+
+        // HOMEPAGE
+        if (type === "homepage") {
+
+          filteredFaqs = group.faqs.filter(
+            (f) =>
+              f.showOn?.homepage === true
+          );
+        }
+
+        // CITY
+        else if (type === "city") {
+
+          filteredFaqs = group.faqs.filter(
+            (f) =>
+              f.showOn?.city === true
+          );
+        }
+
+        // SUBCITY
+        else if (type === "subcity") {
+
+          filteredFaqs = group.faqs.filter(
+            (f) =>
+              f.showOn?.subcity === true
+          );
+        }
+
+        // GIRL
+        else if (type === "girl") {
+
+          filteredFaqs = group.faqs.filter(
+            (f) =>
+              f.showOn?.girl === true
+          );
+        }
+
+        return {
+          ...group.toObject(),
+          faqs: filteredFaqs,
+        };
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      faqs: updatedFaqs,
+    });
+
+  } catch (err) {
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
