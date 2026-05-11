@@ -185,13 +185,16 @@ export const addGirl = async (req, res) => {
 export const getAllGirls = async (req, res) => {
   try {
     const girls = await Girl.find()
-      .populate("city")
-      .populate("subCity") // ✅ IMPORTANT
+      .populate({
+        path: "city",
+      })
       .sort({ createdAt: -1 });
 
-    res.json(girls);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.json({
+      data: girls,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 

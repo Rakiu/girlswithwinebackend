@@ -143,7 +143,7 @@ GirlSchema.pre("save", async function (next) {
       let baseSlug = generateSlug(this.permalink);
 
       if (!baseSlug) {
-        baseSlug = `girl-${Date.now()}`;
+        return next(new Error("Invalid permalink"));
       }
 
       let finalSlug = baseSlug;
@@ -163,10 +163,8 @@ GirlSchema.pre("save", async function (next) {
       this.permalink = finalSlug;
     }
 
-    // ✅ CANONICAL
-    if (this.permalink) {
-      this.canonicalLink = `https://girlswithwine.com/${this.permalink}`;
-    }
+    // ✅ CANONICAL LINK
+    this.canonicalLink = `https://girlswithwine.com/${this.permalink}`;
 
     next();
   } catch (err) {
@@ -186,7 +184,7 @@ GirlSchema.pre("findOneAndUpdate", async function (next) {
       let baseSlug = generateSlug(update.permalink);
 
       if (!baseSlug) {
-        baseSlug = `girl-${Date.now()}`;
+        return next(new Error("Invalid permalink"));
       }
 
       let finalSlug = baseSlug;
