@@ -410,7 +410,7 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 
   <loc>${baseUrl}/blog/${blog.slug}</loc>
 
-  <lastmod>${blog.modified}</lastmod>
+  <lastmod>${new Date(blog.modified).toISOString()}</lastmod>
 
   <changefreq>weekly</changefreq>
 
