@@ -3,6 +3,44 @@ import Girl from "../models/Girl.js";
 import SubCity from "../models/SubCity.js";
 
 /* =========================================================
+   XML ESCAPE
+========================================================= */
+const escapeXml = (unsafe = "") => {
+  return String(unsafe)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+};
+
+/* =========================================================
+   IMAGE URL FIX
+========================================================= */
+const getImageUrl = (url = "") => {
+
+  if (!url) return "";
+
+  if (url.startsWith("http")) {
+    return url;
+  }
+
+  return `https://girlswithwine.com${url}`;
+};
+
+/* =========================================================
+   CACHE HEADER
+========================================================= */
+const setCacheHeaders = (res) => {
+
+  res.setHeader(
+    "Cache-Control",
+    "public, s-maxage=86400, stale-while-revalidate"
+  );
+
+};
+
+/* =========================================================
    MAIN SITEMAP INDEX
 ========================================================= */
 export const generateSitemap = async (req, res) => {
@@ -39,6 +77,8 @@ export const generateSitemap = async (req, res) => {
 
     res.header("Content-Type", "application/xml");
 
+    setCacheHeaders(res);
+
     return res.status(200).send(xml);
 
   } catch (error) {
@@ -52,8 +92,6 @@ export const generateSitemap = async (req, res) => {
   }
 
 };
-
-
 
 /* =========================================================
    PAGE SITEMAP
@@ -85,11 +123,9 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
       xml += `
 <url>
 
-  <loc>${baseUrl}/${page}</loc>
+  <loc>${escapeXml(`${baseUrl}/${page}`)}</loc>
 
-  <changefreq>weekly</changefreq>
-
-  <priority>0.8</priority>
+  <lastmod>${new Date().toISOString()}</lastmod>
 
   <image:image>
     <image:loc>${baseUrl}/images/logo.png</image:loc>
@@ -97,11 +133,15 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
   </image:image>
 
 </url>`;
+
     });
 
-    xml += `</urlset>`;
+    xml += `
+</urlset>`;
 
     res.header("Content-Type", "application/xml");
+
+    setCacheHeaders(res);
 
     return res.status(200).send(xml);
 
@@ -116,8 +156,6 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
   }
 
 };
-
-
 
 /* =========================================================
    CITY SITEMAP
@@ -141,35 +179,43 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 
     cities.forEach((city) => {
 
-      if (!city?.slug) return;
+      if (
+        !city?.slug ||
+        city.slug.includes("undefined") ||
+        city.slug.includes("null")
+      ) {
+        return;
+      }
+
+      const imageUrl = getImageUrl(city.imageUrl);
 
       xml += `
 <url>
 
-  <loc>${baseUrl}/${city.slug}</loc>
+  <loc>${escapeXml(`${baseUrl}/${city.slug}`)}</loc>
 
   <lastmod>${city.updatedAt?.toISOString?.() || ""}</lastmod>
 
-  <changefreq>daily</changefreq>
-
-  <priority>1.0</priority>
-
   ${
-    city.imageUrl
+    imageUrl
       ? `
   <image:image>
-    <image:loc>${city.imageUrl}</image:loc>
-    <image:title>${city.name || ""}</image:title>
+    <image:loc>${escapeXml(imageUrl)}</image:loc>
+    <image:title>${escapeXml(city.name || "")}</image:title>
   </image:image>`
       : ""
   }
 
 </url>`;
+
     });
 
-    xml += `</urlset>`;
+    xml += `
+</urlset>`;
 
     res.header("Content-Type", "application/xml");
+
+    setCacheHeaders(res);
 
     return res.status(200).send(xml);
 
@@ -185,8 +231,6 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 
 };
 
-
-
 /* =========================================================
    SUBCITY SITEMAP
 ========================================================= */
@@ -196,7 +240,6 @@ export const generateSubCitySitemap = async (req, res) => {
 
     const baseUrl = "https://girlswithwine.com";
 
-    // ✅ FIXED STATUS QUERY
     const subCities = await SubCity.find({
       $or: [
         { status: "Active" },
@@ -213,35 +256,43 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 
     subCities.forEach((subCity) => {
 
-      if (!subCity?.slug) return;
+      if (
+        !subCity?.slug ||
+        subCity.slug.includes("undefined") ||
+        subCity.slug.includes("null")
+      ) {
+        return;
+      }
+
+      const imageUrl = getImageUrl(subCity.imageUrl);
 
       xml += `
 <url>
 
-  <loc>${baseUrl}/${subCity.slug}</loc>
+  <loc>${escapeXml(`${baseUrl}/${subCity.slug}`)}</loc>
 
   <lastmod>${subCity.updatedAt?.toISOString?.() || ""}</lastmod>
 
-  <changefreq>daily</changefreq>
-
-  <priority>0.9</priority>
-
   ${
-    subCity.imageUrl
+    imageUrl
       ? `
   <image:image>
-    <image:loc>${subCity.imageUrl}</image:loc>
-    <image:title>${subCity.name || ""}</image:title>
+    <image:loc>${escapeXml(imageUrl)}</image:loc>
+    <image:title>${escapeXml(subCity.name || "")}</image:title>
   </image:image>`
       : ""
   }
 
 </url>`;
+
     });
 
-    xml += `</urlset>`;
+    xml += `
+</urlset>`;
 
     res.header("Content-Type", "application/xml");
+
+    setCacheHeaders(res);
 
     return res.status(200).send(xml);
 
@@ -257,8 +308,6 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 
 };
 
-
-
 /* =========================================================
    PROFILE SITEMAP
 ========================================================= */
@@ -268,23 +317,10 @@ export const generateProfileSitemap = async (req, res) => {
 
     const baseUrl = "https://girlswithwine.com";
 
-    // ✅ FETCH ACTIVE GIRLS
     const girls = await Girl.find({
       status: "Active"
     });
 
-    // ✅ XML ESCAPE FUNCTION
-    const escapeXml = (unsafe = "") => {
-
-      return String(unsafe)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&apos;");
-    };
-
-    // ✅ XML START
     let xml = `<?xml version="1.0" encoding="UTF-8"?>
 
 <urlset
@@ -292,22 +328,23 @@ xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
 xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 >`;
 
-    // ✅ LOOP
     girls.forEach((girl) => {
 
       try {
 
-        // ❌ SKIP INVALID
-        if (!girl?.permalink) return;
+        if (
+          !girl?.permalink ||
+          girl.permalink.includes("undefined") ||
+          girl.permalink.includes("null")
+        ) {
+          return;
+        }
 
-        // ✅ SAFE VALUES
         const loc = escapeXml(
           `${baseUrl}/${girl.permalink}`
         );
 
-        const imageUrl = girl?.imageUrl
-          ? escapeXml(girl.imageUrl)
-          : "";
+        const imageUrl = getImageUrl(girl?.imageUrl);
 
         const title = escapeXml(
           girl?.name || "Escort Profile"
@@ -315,9 +352,8 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 
         const lastmod = girl?.updatedAt
           ? girl.updatedAt.toISOString()
-          : new Date().toISOString();
+          : "";
 
-        // ✅ XML
         xml += `
 <url>
 
@@ -325,15 +361,11 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 
   <lastmod>${lastmod}</lastmod>
 
-  <changefreq>daily</changefreq>
-
-  <priority>0.9</priority>
-
   ${
     imageUrl
       ? `
   <image:image>
-    <image:loc>${imageUrl}</image:loc>
+    <image:loc>${escapeXml(imageUrl)}</image:loc>
     <image:title>${title}</image:title>
   </image:image>`
       : ""
@@ -353,12 +385,12 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 
     });
 
-    // ✅ XML END
     xml += `
 </urlset>`;
 
-    // ✅ RESPONSE
     res.setHeader("Content-Type", "application/xml");
+
+    setCacheHeaders(res);
 
     return res.status(200).send(xml);
 
@@ -375,8 +407,6 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 
 };
 
-
-
 /* =========================================================
    WORDPRESS BLOG SITEMAP
 ========================================================= */
@@ -386,12 +416,17 @@ export const generatePostSitemap = async (req, res) => {
 
     const baseUrl = "https://girlswithwine.com";
 
-    // ✅ WORDPRESS FETCH
     const response = await fetch(
       "https://blog.girlswithwine.com/wp-json/wp/v2/posts?_embed&per_page=100"
     );
 
     const blogs = await response.json();
+
+    if (!Array.isArray(blogs)) {
+
+      throw new Error("Invalid blog response");
+
+    }
 
     let xml = `<?xml version="1.0" encoding="UTF-8"?>
 
@@ -402,36 +437,44 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 
     blogs.forEach((blog) => {
 
+      if (
+        !blog?.slug ||
+        blog.slug.includes("undefined") ||
+        blog.slug.includes("null")
+      ) {
+        return;
+      }
+
       const image =
         blog?._embedded?.["wp:featuredmedia"]?.[0]?.source_url || "";
 
       xml += `
 <url>
 
-  <loc>${baseUrl}/blog/${blog.slug}</loc>
+  <loc>${escapeXml(`${baseUrl}/blog/${blog.slug}`)}</loc>
 
   <lastmod>${new Date(blog.modified).toISOString()}</lastmod>
-
-  <changefreq>weekly</changefreq>
-
-  <priority>0.7</priority>
 
   ${
     image
       ? `
   <image:image>
-    <image:loc>${image}</image:loc>
-    <image:title>${blog.title?.rendered || ""}</image:title>
+    <image:loc>${escapeXml(image)}</image:loc>
+    <image:title>${escapeXml(blog.title?.rendered || "")}</image:title>
   </image:image>`
       : ""
   }
 
 </url>`;
+
     });
 
-    xml += `</urlset>`;
+    xml += `
+</urlset>`;
 
     res.header("Content-Type", "application/xml");
+
+    setCacheHeaders(res);
 
     return res.status(200).send(xml);
 
