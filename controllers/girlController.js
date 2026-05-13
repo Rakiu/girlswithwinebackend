@@ -95,70 +95,59 @@ const processEditorImages = async (html) => {
 };
 
 /* =============================
-   ADD GIRL
+    ADD GIRL
 ============================= */
 
 export const addGirl = async (req, res) => {
-
   try {
-
     let imageUrl = "";
     let images = [];
 
-    // single image
+    // Single image
     if (req.files?.image) {
-
-      imageUrl =
-        `https://girlswithwine.com/uploads/girls/${req.files.image[0].filename}`;
-
+      imageUrl = `https://girlswithwine.com/uploads/girls/${req.files.image[0].filename}`;
     }
 
-    // multiple images
+    // Multiple images
     if (req.files?.images) {
-
       images = req.files.images.map(
-        (file) =>
-          `https://girlswithwine.com/uploads/girls/${file.filename}`
+        (file) => `https://girlswithwine.com/uploads/girls/${file.filename}`
       );
-
     }
 
-    const description =
-      await processEditorImages(req.body.description);
+    const description = await processEditorImages(req.body.description);
 
     const girl = await Girl.create({
-
       name: req.body.name,
       age: req.body.age,
       heading: req.body.heading,
-
       city: parseCity(req.body.city),
-
-      subCity:
-        req.body.subCity || null,
-
-      permalink:
-        req.body.permalink || req.body.name,
-
+      subCity: req.body.subCity || null,
+      permalink: req.body.permalink || req.body.name,
       description,
-
       imageUrl,
       images,
+      imageAlt: req.body.imageAlt,
+      
+      // ✅ BASIC SEO
+      seoTitle: req.body.seoTitle,
+      seoDescription: req.body.seoDescription,
+      seoKeywords: req.body.seoKeywords?.split(",") || [],
 
-      phoneNumber:
-        formatNumber(req.body.phoneNumber),
+      // ✅ SOCIAL SEO (Nayi fields yahan add ki hain)
+      ogTitle: req.body.ogTitle,
+      ogDescription: req.body.ogDescription,
+      twitterTitle: req.body.twitterTitle,
+      twitterDescription: req.body.twitterDescription,
+      facebookTitle: req.body.facebookTitle,
+      facebookDescription: req.body.facebookDescription,
 
-      whatsappNumber:
-        req.body.whatsappNumber
-          ? formatNumber(req.body.whatsappNumber)
-          : undefined,
+      phoneNumber: formatNumber(req.body.phoneNumber),
+      whatsappNumber: req.body.whatsappNumber
+        ? formatNumber(req.body.whatsappNumber)
+        : undefined,
 
-      seoKeywords:
-        req.body.seoKeywords?.split(",") || [],
-
-      showOnHomepage:
-        req.body.showOnHomepage === "true",
-
+      showOnHomepage: req.body.showOnHomepage === "true",
     });
 
     res.json({
@@ -168,16 +157,99 @@ export const addGirl = async (req, res) => {
     });
 
   } catch (err) {
-
     res.status(500).json({
       success: false,
       message: err.message
     });
-
   }
-
 };
 
+/* =============================
+    UPDATE GIRL
+============================= */
+
+export const updateGirl = async (req, res) => {
+  try {
+    const existing = await Girl.findById(req.params.id);
+
+    if (!existing) {
+      return res.status(404).json({ message: "Girl not found" });
+    }
+
+    let imageUrl = existing.imageUrl;
+    let images = existing.images || [];
+
+    if (req.files?.image) {
+      imageUrl = `https://girlswithwine.com/uploads/girls/${req.files.image[0].filename}`;
+    }
+
+    if (req.files?.images) {
+      images = req.files.images.map(
+        (file) => `https://girlswithwine.com/uploads/girls/${file.filename}`
+      );
+    }
+
+    const description = req.body.description
+      ? await processEditorImages(req.body.description)
+      : existing.description;
+
+    // ✅ Body se saari updates le rahe hain (Social SEO included)
+    const updateData = {
+      name: req.body.name,
+      age: req.body.age,
+      heading: req.body.heading,
+      city: parseCity(req.body.city),
+      subCity:
+        req.body.subCity &&
+        req.body.subCity !== "" &&
+        req.body.subCity !== "null"
+          ? req.body.subCity
+          : null,
+      permalink: req.body.permalink,
+      description,
+      imageUrl,
+      images,
+      imageAlt: req.body.imageAlt,
+      seoTitle: req.body.seoTitle,
+      seoDescription: req.body.seoDescription,
+      seoKeywords: req.body.seoKeywords?.split(",") || [],
+
+      // ✅ SOCIAL SEO UPDATES
+      ogTitle: req.body.ogTitle,
+      ogDescription: req.body.ogDescription,
+      twitterTitle: req.body.twitterTitle,
+      twitterDescription: req.body.twitterDescription,
+      facebookTitle: req.body.facebookTitle,
+      facebookDescription: req.body.facebookDescription,
+
+      phoneNumber: formatNumber(req.body.phoneNumber),
+      whatsappNumber: req.body.whatsappNumber
+        ? formatNumber(req.body.whatsappNumber)
+        : undefined,
+      showOnHomepage: req.body.showOnHomepage === "true",
+    };
+
+    const updated = await Girl.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    )
+      .populate("city")
+      .populate("subCity");
+
+    res.json({
+      success: true,
+      message: "Girl updated successfully",
+      data: updated
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+};
 /* =============================
    GET ALL GIRLS
 ============================= */
@@ -254,115 +326,7 @@ export const getGirlsBySubCity = async (req, res) => {
   }
 };
 
-/* =============================
-   UPDATE GIRL
-============================= */
 
-export const updateGirl = async (req, res) => {
-
-  try {
-
-    const existing =
-      await Girl.findById(req.params.id);
-
-    if (!existing) {
-      return res.status(404).json({
-        message: "Girl not found"
-      });
-    }
-
-    let imageUrl =
-      existing.imageUrl;
-
-    let images =
-      existing.images || [];
-
-    // single image update
-    if (req.files?.image) {
-
-      imageUrl =
-        `https://girlswithwine.com/uploads/girls/${req.files.image[0].filename}`;
-
-    }
-
-    // multiple images update
-    if (req.files?.images) {
-
-      images = req.files.images.map(
-        (file) =>
-          `https://girlswithwine.com/uploads/girls/${file.filename}`
-      );
-
-    }
-
-    const description =
-      req.body.description
-        ? await processEditorImages(req.body.description)
-        : existing.description;
-
-    const updated =
-      await Girl.findByIdAndUpdate(
-
-        req.params.id,
-
-        {
-          name: req.body.name,
-          age: req.body.age,
-          heading: req.body.heading,
-
-          city: parseCity(req.body.city),
-
-          subCity:
-            req.body.subCity &&
-            req.body.subCity !== "" &&
-            req.body.subCity !== "null"
-              ? req.body.subCity
-              : null,
-
-          permalink: req.body.permalink,
-
-          description,
-
-          imageUrl,
-          images,
-
-          phoneNumber:
-            formatNumber(req.body.phoneNumber),
-
-          whatsappNumber:
-            req.body.whatsappNumber
-              ? formatNumber(req.body.whatsappNumber)
-              : undefined,
-
-          seoKeywords:
-            req.body.seoKeywords?.split(",") || [],
-
-          showOnHomepage:
-            req.body.showOnHomepage === "true",
-        },
-
-        { new: true }
-
-      )
-        .populate("city")
-        .populate("subCity");
-
-    res.json({
-      success: true,
-      message: "Girl updated successfully",
-      data: updated
-    });
-
-  } catch (err) {
-
-    res.status(500).json({
-      success: false,
-      message: err.message
-    });
-
-  }
-
-};
 
 /* =============================
    DELETE

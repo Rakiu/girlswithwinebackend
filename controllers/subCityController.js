@@ -74,9 +74,7 @@ export const processDescriptionImages = async (description) => {
 // CREATE SUBCITY
 // ------------------------------------------------
 export const createSubCity = async (req, res) => {
-
   try {
-
     const {
       name,
       cityId,
@@ -87,6 +85,13 @@ export const createSubCity = async (req, res) => {
       seoTitle,
       seoDescription,
       seoKeywords,
+      // ✅ Nayi Social SEO Fields
+      ogTitle,
+      ogDescription,
+      twitterTitle,
+      twitterDescription,
+      facebookTitle,
+      facebookDescription,
       tags,
       imageAlt
     } = req.body;
@@ -98,39 +103,30 @@ export const createSubCity = async (req, res) => {
     }
 
     const normalizedName = name.trim().toLowerCase();
-
     const cleanName = slugify(normalizedName);
     const cleanPermalink = slugify(permalink.trim());
-
     const finalSlug = `${cleanPermalink}-${cleanName}`;
 
-    // duplicate check
+    // Duplicate check
     const exists = await SubCity.findOne({ slug: finalSlug });
-
     if (exists) {
-      return res.status(400).json({
-        message: "SubCity page already exists"
-      });
+      return res.status(400).json({ message: "SubCity page already exists" });
     }
 
-    // TAGS FIX
+    // TAGS FIX (Frontend se string aati hai)
     const parsedTags =
       typeof tags === "string"
         ? tags.split(",").map(t => t.trim().toLowerCase())
         : tags;
 
     let imageUrl = "";
-
-    const finalImageAlt =
-      imageAlt || `${normalizedName} escort service`;
+    const finalImageAlt = imageAlt || `${normalizedName} escort service`;
 
     if (req.file) {
       imageUrl = `${BASE_URL}/uploads/subcities/${req.file.filename}`;
     }
 
-    const cleanDescription =
-      await processDescriptionImages(description);
-
+    const cleanDescription = await processDescriptionImages(description);
     const canonicalUrl = `https://girlswithwine.com/${finalSlug}`;
 
     const subCity = await SubCity.create({
@@ -144,6 +140,13 @@ export const createSubCity = async (req, res) => {
       seoTitle,
       seoDescription,
       seoKeywords,
+      // ✅ Inhe database mein save kar rahe hain
+      ogTitle,
+      ogDescription,
+      twitterTitle,
+      twitterDescription,
+      facebookTitle,
+      facebookDescription,
       tags: parsedTags,
       imageUrl,
       imageAlt: finalImageAlt,
@@ -161,11 +164,77 @@ export const createSubCity = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({
-      message: error.message
-    });
+    res.status(500).json({ message: error.message });
   }
+};
 
+// ------------------------------------------------
+// UPDATE SUBCITY
+// ------------------------------------------------
+export const updateSubCity = async (req, res) => {
+  try {
+    const updates = { ...req.body };
+    const existing = await SubCity.findById(req.params.id);
+
+    if (!existing) {
+      return res.status(404).json({ message: "SubCity not found" });
+    }
+
+    if (updates.name) {
+      updates.name = updates.name.trim().toLowerCase();
+    }
+
+    // Slug aur Canonical refresh logic
+    if (updates.permalink || updates.name) {
+      const cleanName = slugify(updates.name || existing.name);
+      const cleanPermalink = slugify((updates.permalink || existing.permalink).trim());
+      const finalSlug = `${cleanPermalink}-${cleanName}`;
+
+      const exists = await SubCity.findOne({
+        slug: finalSlug,
+        _id: { $ne: req.params.id }
+      });
+
+      if (exists) {
+        return res.status(400).json({ message: "Page already exists" });
+      }
+
+      updates.slug = finalSlug;
+      updates.permalink = cleanPermalink;
+      updates.canonicalUrl = `https://girlswithwine.com/${finalSlug}`;
+    }
+
+    // TAGS FIX (Array conversion)
+    if (updates.tags && typeof updates.tags === "string") {
+      updates.tags = updates.tags
+        .split(",")
+        .map(t => t.trim().toLowerCase());
+    }
+
+    if (updates.description) {
+      updates.description = await processDescriptionImages(updates.description);
+    }
+
+    if (req.file) {
+      updates.imageUrl = `${BASE_URL}/uploads/subcities/${req.file.filename}`;
+    }
+
+    // ✅ findByIdAndUpdate updates object ke throw saari social fields 
+    // (ogTitle, twitterTitle, etc.) ko update kar dega.
+    const updated = await SubCity.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true, runValidators: true }
+    );
+
+    res.json({
+      message: "SubCity updated",
+      data: updated
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 
@@ -229,90 +298,7 @@ export const getSubCities = async (req, res) => {
 };
 
 
-// ------------------------------------------------
-// UPDATE SUBCITY
-// ------------------------------------------------
-export const updateSubCity = async (req, res) => {
 
-  try {
-
-    const updates = { ...req.body };
-
-    const existing = await SubCity.findById(req.params.id);
-
-    if (!existing) {
-      return res.status(404).json({
-        message: "SubCity not found"
-      });
-    }
-
-    if (updates.name) {
-      updates.name = updates.name.trim().toLowerCase();
-    }
-
-    if (updates.permalink || updates.name) {
-
-      const cleanName = slugify(
-        updates.name || existing.name
-      );
-
-      const cleanPermalink = slugify(
-        (updates.permalink || existing.permalink).trim()
-      );
-
-      const finalSlug = `${cleanPermalink}-${cleanName}`;
-
-      const exists = await SubCity.findOne({
-        slug: finalSlug,
-        _id: { $ne: req.params.id }
-      });
-
-      if (exists) {
-        return res.status(400).json({
-          message: "Page already exists"
-        });
-      }
-
-      updates.slug = finalSlug;
-      updates.permalink = cleanPermalink;
-      updates.canonicalUrl = `https://girlswithwine.com/${finalSlug}`;
-    }
-
-    // TAGS FIX
-    if (updates.tags && typeof updates.tags === "string") {
-      updates.tags = updates.tags
-        .split(",")
-        .map(t => t.trim().toLowerCase());
-    }
-
-    if (updates.description) {
-      updates.description =
-        await processDescriptionImages(updates.description);
-    }
-
-    if (req.file) {
-      updates.imageUrl =
-        `${BASE_URL}/uploads/subcities/${req.file.filename}`;
-    }
-
-    const updated = await SubCity.findByIdAndUpdate(
-      req.params.id,
-      updates,
-      { new: true }
-    );
-
-    res.json({
-      message: "SubCity updated",
-      data: updated
-    });
-
-  } catch (error) {
-    res.status(500).json({
-      message: error.message
-    });
-  }
-
-};
 
 
 // ------------------------------------------------

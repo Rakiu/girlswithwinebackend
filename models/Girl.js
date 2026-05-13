@@ -57,6 +57,14 @@ const GirlSchema = new mongoose.Schema(
     seoDescription: String,
     seoKeywords: [String],
 
+    // ✅ SOCIAL SEO (Nayi fields yahan add ki hain)
+    ogTitle: String,
+    ogDescription: String,
+    twitterTitle: String,
+    twitterDescription: String,
+    facebookTitle: String,
+    facebookDescription: String,
+
     phoneNumber: {
       type: String,
       required: true,

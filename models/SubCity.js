@@ -43,6 +43,13 @@ const SubCitySchema = new mongoose.Schema({
   seoDescription: String,
   seoKeywords: String,
 
+  ogTitle: String,
+  ogDescription: String,
+  twitterTitle: String,
+  twitterDescription: String,
+  facebookTitle: String,
+  facebookDescription: String,
+
   canonicalUrl: String,
 
   schemaType: {

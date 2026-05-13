@@ -78,9 +78,7 @@ export const processDescriptionImages = async (description) => {
 // CREATE CITY
 // ------------------------------------------------
 export const createCity = async (req, res) => {
-
   try {
-
     const {
       mainCity,
       permalink,
@@ -90,6 +88,13 @@ export const createCity = async (req, res) => {
       seoTitle,
       seoDescription,
       seoKeywords,
+      // ✅ Nayi Social Fields yahan add ki hain
+      ogTitle,
+      ogDescription,
+      twitterTitle,
+      twitterDescription,
+      facebookTitle,
+      facebookDescription,
       imageAlt
     } = req.body;
 
@@ -100,32 +105,23 @@ export const createCity = async (req, res) => {
     }
 
     const normalizedCity = mainCity.trim().toLowerCase();
-
     const cleanCity = slugify(normalizedCity);
     const cleanPermalink = slugify(permalink.trim());
-
     const finalSlug = `${cleanPermalink}-${cleanCity}`.toLowerCase();
 
     const exists = await City.findOne({ slug: finalSlug });
-
     if (exists) {
-      return res.status(400).json({
-        message: "Page already exists"
-      });
+      return res.status(400).json({ message: "Page already exists" });
     }
 
     let imageUrl = "";
-
-    const finalImageAlt =
-      imageAlt || `${normalizedCity} escort service`;
+    const finalImageAlt = imageAlt || `${normalizedCity} escort service`;
 
     if (req.file) {
       imageUrl = `${BASE_URL}/uploads/cities/${req.file.filename}`;
     }
 
-    const cleanDescription =
-      await processDescriptionImages(description);
-
+    const cleanDescription = await processDescriptionImages(description);
     const canonicalUrl = `https://girlswithwine.com/${finalSlug}`;
 
     const city = await City.create({
@@ -140,6 +136,13 @@ export const createCity = async (req, res) => {
       seoTitle,
       seoDescription,
       seoKeywords,
+      // ✅ Inhe database mein save kar rahe hain
+      ogTitle,
+      ogDescription,
+      twitterTitle,
+      twitterDescription,
+      facebookTitle,
+      facebookDescription,
       canonicalUrl
     });
 
@@ -149,11 +152,8 @@ export const createCity = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({
-      message: error.message
-    });
+    res.status(500).json({ message: error.message });
   }
-
 };
 
 
@@ -228,34 +228,23 @@ export const getCities = async (req, res) => {
 // UPDATE CITY
 // ------------------------------------------------
 export const updateCity = async (req, res) => {
-
   try {
-
     const updates = { ...req.body };
-
     const existing = await City.findById(req.params.id);
 
     if (!existing) {
-      return res.status(404).json({
-        message: "City not found"
-      });
+      return res.status(404).json({ message: "City not found" });
     }
 
+    // Main City formatting
     if (updates.mainCity) {
-      updates.mainCity =
-        updates.mainCity.trim().toLowerCase();
+      updates.mainCity = updates.mainCity.trim().toLowerCase();
     }
 
+    // Slug aur Canonical refresh agar permalink ya city change ho
     if (updates.permalink || updates.mainCity) {
-
-      const cleanCity = slugify(
-        updates.mainCity || existing.mainCity
-      );
-
-      const cleanPermalink = slugify(
-        (updates.permalink || existing.permalink).trim()
-      );
-
+      const cleanCity = slugify(updates.mainCity || existing.mainCity);
+      const cleanPermalink = slugify((updates.permalink || existing.permalink).trim());
       const finalSlug = `${cleanPermalink}-${cleanCity}`.toLowerCase();
 
       const exists = await City.findOne({
@@ -264,9 +253,7 @@ export const updateCity = async (req, res) => {
       });
 
       if (exists) {
-        return res.status(400).json({
-          message: "Page already exists"
-        });
+        return res.status(400).json({ message: "Page already exists" });
       }
 
       updates.slug = finalSlug;
@@ -274,16 +261,18 @@ export const updateCity = async (req, res) => {
       updates.canonicalUrl = `https://girlswithwine.com/${finalSlug}`;
     }
 
+    // Description images process karein
     if (updates.description) {
-      updates.description =
-        await processDescriptionImages(updates.description);
+      updates.description = await processDescriptionImages(updates.description);
     }
 
+    // File upload handle karein
     if (req.file) {
-      updates.imageUrl =
-        `${BASE_URL}/uploads/cities/${req.file.filename}`;
+      updates.imageUrl = `${BASE_URL}/uploads/cities/${req.file.filename}`;
     }
 
+    // ✅ findByIdAndUpdate ab req.body mein maujood saari fields 
+    // (Social SEO included) ko update kar dega.
     const updated = await City.findByIdAndUpdate(
       req.params.id,
       updates,
@@ -296,11 +285,8 @@ export const updateCity = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({
-      message: error.message
-    });
+    res.status(500).json({ message: error.message });
   }
-
 };
 
 
