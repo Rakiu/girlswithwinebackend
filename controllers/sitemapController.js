@@ -414,7 +414,7 @@ export const generatePostSitemap = async (req, res) => {
 
   try {
 
-    const baseUrl = "https://girlswithwine.com";
+    const baseUrl = "https://blog.girlswithwine.com";
 
     const response = await fetch(
       "https://blog.girlswithwine.com/wp-json/wp/v2/posts?_embed&per_page=100"
@@ -451,7 +451,7 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
       xml += `
 <url>
 
-  <loc>${escapeXml(`${baseUrl}/blog/${blog.slug}`)}</loc>
+  <loc>${escapeXml(`${baseUrl}${blog.slug}`)}</loc>
 
   <lastmod>${new Date(blog.modified).toISOString()}</lastmod>
 
