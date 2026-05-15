@@ -425,3 +425,133 @@ export const getFaqsByType = async (req, res) => {
     });
   }
 };
+
+/* =========================================================
+   GET FAQS BY VISIBILITY
+========================================================= */
+
+export const getFaqsByVisibility = async (req, res) => {
+  try {
+
+    const {
+      type,
+      visible,
+      cityId,
+      subCityId,
+      girlId,
+    } = req.query;
+
+    /* =========================================
+       BASE QUERY
+    ========================================= */
+
+    const query = {
+      status: "Active",
+    };
+
+    // TYPE
+    if (type) {
+      query.type = type;
+    }
+
+    // CITY
+    if (cityId) {
+      query.city = cityId;
+    }
+
+    // SUBCITY
+    if (subCityId) {
+      query.subCity = subCityId;
+    }
+
+    // GIRL
+    if (girlId) {
+      query.girl = girlId;
+    }
+
+    /* =========================================
+       FIND FAQS
+    ========================================= */
+
+    const faqGroups = await Faq.find(query)
+
+      .populate("city", "mainCity")
+
+      .populate("subCity", "name")
+
+      .populate("girl", "name")
+
+      .sort({ createdAt: -1 });
+
+    /* =========================================
+       FILTER FAQS
+    ========================================= */
+
+    const updatedFaqs = faqGroups.map((group) => {
+
+      let filteredFaqs = group.faqs;
+
+      // BOOLEAN CONVERT
+      const isVisible =
+        visible === "true";
+
+      // HOMEPAGE
+      if (type === "homepage") {
+
+        filteredFaqs = group.faqs.filter(
+          (f) =>
+            f.showOn?.homepage === isVisible
+        );
+
+      }
+
+      // CITY
+      else if (type === "city") {
+
+        filteredFaqs = group.faqs.filter(
+          (f) =>
+            f.showOn?.city === isVisible
+        );
+
+      }
+
+      // SUBCITY
+      else if (type === "subcity") {
+
+        filteredFaqs = group.faqs.filter(
+          (f) =>
+            f.showOn?.subcity === isVisible
+        );
+
+      }
+
+      // GIRL
+      else if (type === "girl") {
+
+        filteredFaqs = group.faqs.filter(
+          (f) =>
+            f.showOn?.girl === isVisible
+        );
+
+      }
+
+      return {
+        ...group.toObject(),
+        faqs: filteredFaqs,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: updatedFaqs.length,
+      faqs: updatedFaqs,
+    });
+
+  } catch (err) {
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+}; 

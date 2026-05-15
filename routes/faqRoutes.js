@@ -13,6 +13,7 @@ import {
   updateFaq,
   deleteFaq,
   toggleFaqStatus,
+  getFaqsByVisibility,
 } from "../controllers/faqController.js";
 
 import {
@@ -122,6 +123,11 @@ router.get(
 router.get(
   "/girl/:girlId",
   getFaqsByGirl
+);
+
+router.get(
+  "/visibility",
+  getFaqsByVisibility
 );
 
 export default router;
