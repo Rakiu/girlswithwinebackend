@@ -1,17 +1,12 @@
 import mongoose from "mongoose";
 import { slugify } from "../utils/seoHelper.js";
 
-const SubCitySchema = new mongoose.Schema({
-
-  city: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "City",
-    required: true
-  },
-
-  name: {
+const CitySchema = new mongoose.Schema(
+{
+  mainCity: {
     type: String,
     required: true,
+    unique: true,
     lowercase: true,
     trim: true
   },
@@ -19,6 +14,7 @@ const SubCitySchema = new mongoose.Schema({
   permalink: {
     type: String,
     required: true,
+    unique: true,
     lowercase: true,
     trim: true
   },
@@ -32,12 +28,21 @@ const SubCitySchema = new mongoose.Schema({
   subDescription: String,
   description: String,
 
-  // ✅ TAGS
+    // ✅ TAGS
   tags: [{
     type: String,
     trim: true,
     lowercase: true
   }],
+
+  // ✅ SUBCITIES REF
+  subCities: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "SubCity"
+  }],
+
+
+  
 
   seoTitle: String,
   seoDescription: String,
@@ -70,24 +75,23 @@ const SubCitySchema = new mongoose.Schema({
     default: "Active"
   }
 
-}, { timestamps: true });
+},{ timestamps: true });
 
 
 // 🔥 BEFORE SAVE
-SubCitySchema.pre("save", function(next){
+CitySchema.pre("save", function(next){
 
+  // permalink clean
   if (this.permalink) {
     this.permalink = slugify(this.permalink);
   }
 
-  if (this.permalink && this.name) {
-    this.slug = `${this.permalink}`;
+  // image alt auto
+  if (!this.imageAlt && this.mainCity) {
+    this.imageAlt = `${this.mainCity} escort service`;
   }
 
-  if (!this.imageAlt && this.name) {
-    this.imageAlt = `${this.name} escort service`;
-  }
-
+  // canonical auto
   if (this.slug) {
     this.canonicalUrl = `https://girlswithwine.com/${this.slug}`;
   }
@@ -97,7 +101,7 @@ SubCitySchema.pre("save", function(next){
 
 
 // 🔥 BEFORE UPDATE
-SubCitySchema.pre("findOneAndUpdate", function(next){
+CitySchema.pre("findOneAndUpdate", function(next){
 
   const update = this.getUpdate();
 
@@ -105,20 +109,10 @@ SubCitySchema.pre("findOneAndUpdate", function(next){
     update.permalink = slugify(update.permalink);
   }
 
-  if (update.permalink && update.name) {
-    update.slug = `${update.permalink}`;
-    update.canonicalUrl = `https://girlswithwine.com/${update.slug}`;
-  }
-
-  if (update.tags && typeof update.tags === "string") {
-    update.tags = update.tags.split(",").map(t => t.trim().toLowerCase());
-  }
-
   this.setUpdate(update);
   next();
 });
 
-// duplicate prevent
-SubCitySchema.index({ name: 1, city: 1 }, { unique: true });
 
-export default mongoose.models.SubCity || mongoose.model("SubCity", SubCitySchema);
+// ✅ SAFE EXPORT (VERY IMPORTANT)
+export default mongoose.models.City || mongoose.model("City", CitySchema);

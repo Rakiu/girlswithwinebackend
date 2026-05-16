@@ -1,4 +1,3 @@
-
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -60,20 +59,20 @@ mongoose
   .catch((err) => console.error("❌ MongoDB Error:", err));
 
 /* ==============================
-   TEST ROUTE (VERY IMPORTANT)
+   TEST ROUTE
 ============================== */
 app.get("/", (req, res) => {
   res.send("Backend Running Successfully 🚀");
 });
 
 /* ==============================
-   ROUTES (ORDER IMPORTANT)
+   ROUTES
 ============================== */
 
-// ✅ Sitemap FIRST
+// Sitemap FIRST
 app.use("/", sitemapRoutes);
 
-// ✅ APIs
+// APIs
 app.use("/api/admin", adminRoutes);
 app.use("/api/states", stateRoutes);
 app.use("/api/cities", cityRoutes);
@@ -85,7 +84,7 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/subcities", subCityRoutes);
 app.use("/api/faqs", faqRoutes);
 
-// ✅ Redirect LAST
+// Redirect LAST
 app.use("/", redirectRoutes);
 
 /* ==============================
@@ -114,15 +113,4 @@ app.use((err, req, res, next) => {
   });
 });
 
-/* ==============================
-   SERVER START (FIXED 🔥)
-============================== */
-const PORT = process.env.PORT || 5000;
-const BASE_URL = process.env.BASE_URL;
-
-// 🔥 IMPORTANT FIX
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 API URL: ${BASE_URL}`);
-  console.log(`📂 Upload Base URL: ${BASE_URL}/uploads`);
-});
+export default app;
