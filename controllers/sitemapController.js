@@ -108,7 +108,6 @@ export const generatePageSitemap = async (req, res) => {
       "terms",
       "privacy",
       "contact",
-      "blog"
     ];
 
     let xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -128,7 +127,7 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
   <lastmod>${new Date().toISOString()}</lastmod>
 
   <image:image>
-    <image:loc>${baseUrl}/images/logo.png</image:loc>
+    <image:loc>${baseUrl}/images/girlswithwine.jpg</image:loc>
     <image:title>Girls With Wine</image:title>
   </image:image>
 
