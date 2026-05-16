@@ -14,7 +14,7 @@ import blogRoutes from "./routes/blogRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import redirectRoutes from "./routes/redirectRoutes.js";
 import sitemapRoutes from "./routes/sitemapRoutes.js";
-import subCityRoutes from "./routes/subCityRoutes.js";
+import subCityRoutes from "./routes/subcityRoutes.js";
 import faqRoutes from "./routes/faqRoutes.js";
 
 dotenv.config();
