@@ -1,8 +1,10 @@
 import Girl from "../models/Girl.js";
 import City from "../models/City.js";
 import SubCity from "../models/SubCity.js";
+
 import * as cheerio from "cheerio";
 import axios from "axios";
+
 import fs from "fs";
 import path from "path";
 
@@ -12,26 +14,54 @@ import path from "path";
 
 const formatNumber = (num) => {
   if (!num) return "";
-  return num.startsWith("+91") ? num : `+91${num}`;
+
+  return num.startsWith("+91")
+    ? num
+    : `+91${num}`;
 };
 
-const uploadDir = "uploads/girls";
+/* =========================================
+   VERCEL SAFE UPLOAD PATH
+========================================= */
+
+const uploadDir = "/tmp/uploads/girls";
+
+/* =========================================
+   CREATE FOLDER
+========================================= */
 
 if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+  fs.mkdirSync(uploadDir, {
+    recursive: true,
+  });
 }
 
+/* =========================================
+   PARSE CITY
+========================================= */
+
 const parseCity = (city) => {
+
   if (!city) return [];
 
-  if (Array.isArray(city)) return city;
+  if (Array.isArray(city)) {
+    return city;
+  }
 
   if (typeof city === "string") {
+
     try {
+
       const parsed = JSON.parse(city);
-      return Array.isArray(parsed) ? parsed : [parsed];
+
+      return Array.isArray(parsed)
+        ? parsed
+        : [parsed];
+
     } catch {
+
       return [city];
+
     }
   }
 
@@ -56,12 +86,19 @@ const processEditorImages = async (html) => {
 
     if (!src) return;
 
-    if (src.includes("/uploads/girls/")) return;
+    // already uploaded
+    if (src.includes("/uploads/girls/")) {
+      return;
+    }
 
     const fileName =
       `${Date.now()}-${Math.floor(Math.random() * 9999)}.png`;
 
     const savePath = path.join(uploadDir, fileName);
+
+    /* =========================================
+       BASE64 IMAGE
+    ========================================= */
 
     if (src.startsWith("data:image")) {
 
@@ -86,7 +123,6 @@ const processEditorImages = async (html) => {
         })
       );
     }
-
   });
 
   await Promise.all(tasks);
@@ -95,158 +131,298 @@ const processEditorImages = async (html) => {
 };
 
 /* =============================
-    ADD GIRL
+   ADD GIRL
 ============================= */
 
 export const addGirl = async (req, res) => {
+
   try {
+
     let imageUrl = "";
+
     let images = [];
 
-    // Single image
+    /* =========================================
+       SINGLE IMAGE
+    ========================================= */
+
     if (req.files?.image) {
-      imageUrl = `https://girlswithwine.com/uploads/girls/${req.files.image[0].filename}`;
+
+      imageUrl =
+        `https://girlswithwine.com/uploads/girls/${req.files.image[0].filename}`;
     }
 
-    // Multiple images
+    /* =========================================
+       MULTIPLE IMAGES
+    ========================================= */
+
     if (req.files?.images) {
+
       images = req.files.images.map(
-        (file) => `https://girlswithwine.com/uploads/girls/${file.filename}`
+        (file) =>
+          `https://girlswithwine.com/uploads/girls/${file.filename}`
       );
     }
 
-    const description = await processEditorImages(req.body.description);
+    /* =========================================
+       PROCESS EDITOR IMAGES
+    ========================================= */
+
+    const description =
+      await processEditorImages(
+        req.body.description
+      );
+
+    /* =========================================
+       CREATE GIRL
+    ========================================= */
 
     const girl = await Girl.create({
+
       name: req.body.name,
+
       age: req.body.age,
+
       heading: req.body.heading,
+
       city: parseCity(req.body.city),
+
       subCity: req.body.subCity || null,
-      permalink: req.body.permalink || req.body.name,
+
+      permalink:
+        req.body.permalink ||
+        req.body.name,
+
       description,
+
       imageUrl,
+
       images,
+
       imageAlt: req.body.imageAlt,
-      
-      // ✅ BASIC SEO
+
+      /* SEO */
+
       seoTitle: req.body.seoTitle,
-      seoDescription: req.body.seoDescription,
-      seoKeywords: req.body.seoKeywords?.split(",") || [],
 
-      // ✅ SOCIAL SEO (Nayi fields yahan add ki hain)
+      seoDescription:
+        req.body.seoDescription,
+
+      seoKeywords:
+        req.body.seoKeywords?.split(",") || [],
+
+      /* OG SEO */
+
       ogTitle: req.body.ogTitle,
-      ogDescription: req.body.ogDescription,
-      twitterTitle: req.body.twitterTitle,
-      twitterDescription: req.body.twitterDescription,
-      facebookTitle: req.body.facebookTitle,
-      facebookDescription: req.body.facebookDescription,
 
-      phoneNumber: formatNumber(req.body.phoneNumber),
-      whatsappNumber: req.body.whatsappNumber
-        ? formatNumber(req.body.whatsappNumber)
-        : undefined,
+      ogDescription:
+        req.body.ogDescription,
 
-      showOnHomepage: req.body.showOnHomepage === "true",
+      twitterTitle:
+        req.body.twitterTitle,
+
+      twitterDescription:
+        req.body.twitterDescription,
+
+      facebookTitle:
+        req.body.facebookTitle,
+
+      facebookDescription:
+        req.body.facebookDescription,
+
+      /* PHONE */
+
+      phoneNumber:
+        formatNumber(
+          req.body.phoneNumber
+        ),
+
+      whatsappNumber:
+        req.body.whatsappNumber
+          ? formatNumber(
+              req.body.whatsappNumber
+            )
+          : undefined,
+
+      showOnHomepage:
+        req.body.showOnHomepage === "true",
     });
 
-    res.json({
+    res.status(201).json({
       success: true,
       message: "Girl created successfully",
-      data: girl
+      data: girl,
     });
 
   } catch (err) {
+
+    console.error(err);
+
     res.status(500).json({
       success: false,
-      message: err.message
+      message: err.message,
     });
   }
 };
 
 /* =============================
-    UPDATE GIRL
+   UPDATE GIRL
 ============================= */
 
 export const updateGirl = async (req, res) => {
+
   try {
-    const existing = await Girl.findById(req.params.id);
+
+    const existing =
+      await Girl.findById(req.params.id);
 
     if (!existing) {
-      return res.status(404).json({ message: "Girl not found" });
+
+      return res.status(404).json({
+        message: "Girl not found",
+      });
     }
 
-    let imageUrl = existing.imageUrl;
-    let images = existing.images || [];
+    let imageUrl =
+      existing.imageUrl;
+
+    let images =
+      existing.images || [];
+
+    /* =========================================
+       SINGLE IMAGE
+    ========================================= */
 
     if (req.files?.image) {
-      imageUrl = `https://girlswithwine.com/uploads/girls/${req.files.image[0].filename}`;
+
+      imageUrl =
+        `https://girlswithwine.com/uploads/girls/${req.files.image[0].filename}`;
     }
 
+    /* =========================================
+       MULTIPLE IMAGES
+    ========================================= */
+
     if (req.files?.images) {
+
       images = req.files.images.map(
-        (file) => `https://girlswithwine.com/uploads/girls/${file.filename}`
+        (file) =>
+          `https://girlswithwine.com/uploads/girls/${file.filename}`
       );
     }
 
-    const description = req.body.description
-      ? await processEditorImages(req.body.description)
-      : existing.description;
+    /* =========================================
+       DESCRIPTION
+    ========================================= */
 
-    // ✅ Body se saari updates le rahe hain (Social SEO included)
+    const description =
+      req.body.description
+        ? await processEditorImages(
+            req.body.description
+          )
+        : existing.description;
+
+    /* =========================================
+       UPDATE DATA
+    ========================================= */
+
     const updateData = {
+
       name: req.body.name,
+
       age: req.body.age,
+
       heading: req.body.heading,
+
       city: parseCity(req.body.city),
+
       subCity:
         req.body.subCity &&
         req.body.subCity !== "" &&
         req.body.subCity !== "null"
           ? req.body.subCity
           : null,
-      permalink: req.body.permalink,
+
+      permalink:
+        req.body.permalink,
+
       description,
+
       imageUrl,
+
       images,
-      imageAlt: req.body.imageAlt,
-      seoTitle: req.body.seoTitle,
-      seoDescription: req.body.seoDescription,
-      seoKeywords: req.body.seoKeywords?.split(",") || [],
 
-      // ✅ SOCIAL SEO UPDATES
-      ogTitle: req.body.ogTitle,
-      ogDescription: req.body.ogDescription,
-      twitterTitle: req.body.twitterTitle,
-      twitterDescription: req.body.twitterDescription,
-      facebookTitle: req.body.facebookTitle,
-      facebookDescription: req.body.facebookDescription,
+      imageAlt:
+        req.body.imageAlt,
 
-      phoneNumber: formatNumber(req.body.phoneNumber),
-      whatsappNumber: req.body.whatsappNumber
-        ? formatNumber(req.body.whatsappNumber)
-        : undefined,
-      showOnHomepage: req.body.showOnHomepage === "true",
+      seoTitle:
+        req.body.seoTitle,
+
+      seoDescription:
+        req.body.seoDescription,
+
+      seoKeywords:
+        req.body.seoKeywords?.split(",") || [],
+
+      ogTitle:
+        req.body.ogTitle,
+
+      ogDescription:
+        req.body.ogDescription,
+
+      twitterTitle:
+        req.body.twitterTitle,
+
+      twitterDescription:
+        req.body.twitterDescription,
+
+      facebookTitle:
+        req.body.facebookTitle,
+
+      facebookDescription:
+        req.body.facebookDescription,
+
+      phoneNumber:
+        formatNumber(
+          req.body.phoneNumber
+        ),
+
+      whatsappNumber:
+        req.body.whatsappNumber
+          ? formatNumber(
+              req.body.whatsappNumber
+            )
+          : undefined,
+
+      showOnHomepage:
+        req.body.showOnHomepage === "true",
     };
 
-    const updated = await Girl.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    )
-      .populate("city")
-      .populate("subCity");
+    const updated =
+      await Girl.findByIdAndUpdate(
+        req.params.id,
+        updateData,
+        {
+          new: true,
+          runValidators: true,
+        }
+      )
+        .populate("city")
+        .populate("subCity");
 
     res.json({
       success: true,
       message: "Girl updated successfully",
-      data: updated
+      data: updated,
     });
 
   } catch (err) {
+
+    console.error(err);
+
     res.status(500).json({
       success: false,
-      message: err.message
+      message: err.message,
     });
   }
 };

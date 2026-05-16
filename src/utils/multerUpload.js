@@ -8,7 +8,11 @@ import path from "path";
 export const createUploader = (folderName) => {
 
   // ✅ Vercel writable path
-  const uploadPath = path.join("/tmp", "uploads", folderName);
+  const uploadPath = path.join(
+    "/tmp",
+    "uploads",
+    folderName
+  );
 
   // ✅ create folder safely
   if (!fs.existsSync(uploadPath)) {
@@ -49,22 +53,22 @@ export const createDynamicUploader = () => {
 
     destination: (req, file, cb) => {
 
-      // unique folder
       const folderName = Date.now().toString();
 
-      // ✅ Vercel temp path
+      // ✅ /tmp path
       const uploadPath = path.join(
         "/tmp",
         "uploads",
         folderName
       );
 
-      // create folder
+      // create folder safely
       if (!fs.existsSync(uploadPath)) {
-        fs.mkdirSync(uploadPath, { recursive: true });
+        fs.mkdirSync(uploadPath, {
+          recursive: true,
+        });
       }
 
-      // save folder name
       req.dynamicFolder = folderName;
 
       cb(null, uploadPath);
