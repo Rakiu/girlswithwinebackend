@@ -2,9 +2,8 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
 
+// ROUTES
 import adminRoutes from "./routes/adminRoutes.js";
 import cityRoutes from "./routes/cityRoutes.js";
 import girlRoutes from "./routes/girlRoutes.js";
@@ -22,15 +21,9 @@ dotenv.config();
 
 const app = express();
 
-/* ==============================
-   PATH FIX
-============================== */
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-/* ==============================
-   MIDDLEWARE
-============================== */
+/* =========================================
+   CORS
+========================================= */
 app.use(
   cors({
     origin: [
@@ -42,32 +35,46 @@ app.use(
   })
 );
 
+/* =========================================
+   BODY PARSER
+========================================= */
 app.use(express.json({ limit: "100mb" }));
-app.use(express.urlencoded({ limit: "100mb", extended: true }));
+app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 
-/* ==============================
-   STATIC FILES
-============================== */
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+/* =========================================
+   DATABASE CONNECTION
+========================================= */
+const connectDB = async () => {
+  try {
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(process.env.MONGO_URI);
 
-/* ==============================
-   DATABASE
-============================== */
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.error("❌ MongoDB Error:", err));
+      console.log("✅ MongoDB Connected");
+    }
+  } catch (error) {
+    console.error("❌ MongoDB Error:", error.message);
+  }
+};
 
-/* ==============================
-   TEST ROUTE
-============================== */
+await connectDB();
+
+/* =========================================
+   TEST ROUTES
+========================================= */
 app.get("/", (req, res) => {
-  res.send("Backend Running Successfully 🚀");
+  res.status(200).send("Backend Running Successfully 🚀");
 });
 
-/* ==============================
+app.get("/test", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Backend Working 🚀",
+  });
+});
+
+/* =========================================
    ROUTES
-============================== */
+========================================= */
 
 // Sitemap FIRST
 app.use("/", sitemapRoutes);
@@ -87,30 +94,36 @@ app.use("/api/faqs", faqRoutes);
 // Redirect LAST
 app.use("/", redirectRoutes);
 
-/* ==============================
+/* =========================================
+   404 HANDLER
+========================================= */
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route Not Found",
+  });
+});
+
+/* =========================================
    ERROR HANDLER
-============================== */
+========================================= */
 app.use((err, req, res, next) => {
-  console.error("❌ ERROR:", err);
+  console.error("❌ SERVER ERROR:", err);
 
   if (err.type === "entity.too.large") {
     return res.status(413).json({
       success: false,
-      message: "Payload too large. Reduce file size.",
-    });
-  }
-
-  if (err.code === "LIMIT_FILE_SIZE") {
-    return res.status(413).json({
-      success: false,
-      message: "Uploaded file is too large.",
+      message: "Payload too large",
     });
   }
 
   res.status(err.status || 500).json({
     success: false,
-    message: err.message || "Something went wrong",
+    message: err.message || "Internal Server Error",
   });
 });
 
+/* =========================================
+   EXPORT APP
+========================================= */
 export default app;
