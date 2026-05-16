@@ -62,8 +62,10 @@ await connectDB();
    TEST ROUTES
 ========================================= */
 app.get("/", (req, res) => {
-  res.status(200).send("Backend Running Successfully 🚀");
+  res.send("Backend Working 🚀");
 });
+
+
 
 app.get("/test", (req, res) => {
   res.status(200).json({
