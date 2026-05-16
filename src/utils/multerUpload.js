@@ -3,28 +3,34 @@ import fs from "fs";
 import path from "path";
 
 /* =================================
-   STATIC FOLDER UPLOADER (OLD)
+   STATIC FOLDER UPLOADER
 ================================= */
 export const createUploader = (folderName) => {
 
-  const uploadPath = `uploads/${folderName}`;
+  // ✅ Vercel writable path
+  const uploadPath = path.join("/tmp", "uploads", folderName);
 
+  // ✅ create folder safely
   if (!fs.existsSync(uploadPath)) {
     fs.mkdirSync(uploadPath, { recursive: true });
   }
 
   const storage = multer.diskStorage({
+
     destination: (req, file, cb) => {
       cb(null, uploadPath);
     },
 
     filename: (req, file, cb) => {
+
       const ext = path.extname(file.originalname);
 
       const name =
         Date.now() +
         "-" +
-        file.originalname.replace(ext, "").replace(/\s/g, "-") +
+        file.originalname
+          .replace(ext, "")
+          .replace(/\s/g, "-") +
         ext;
 
       cb(null, name);
@@ -35,7 +41,7 @@ export const createUploader = (folderName) => {
 };
 
 /* =================================
-   DYNAMIC FOLDER UPLOADER (NEW 🔥)
+   DYNAMIC FOLDER UPLOADER
 ================================= */
 export const createDynamicUploader = () => {
 
@@ -43,27 +49,37 @@ export const createDynamicUploader = () => {
 
     destination: (req, file, cb) => {
 
-      const folderName = Date.now().toString(); // 🔥 unique folder
+      // unique folder
+      const folderName = Date.now().toString();
 
-      const uploadPath = `uploads/${folderName}`;
+      // ✅ Vercel temp path
+      const uploadPath = path.join(
+        "/tmp",
+        "uploads",
+        folderName
+      );
 
+      // create folder
       if (!fs.existsSync(uploadPath)) {
         fs.mkdirSync(uploadPath, { recursive: true });
       }
 
-      // save folder name for controller
+      // save folder name
       req.dynamicFolder = folderName;
 
       cb(null, uploadPath);
     },
 
     filename: (req, file, cb) => {
+
       const ext = path.extname(file.originalname);
 
       const fileName =
         Date.now() +
         "-" +
-        file.originalname.replace(ext, "").replace(/\s/g, "-") +
+        file.originalname
+          .replace(ext, "")
+          .replace(/\s/g, "-") +
         ext;
 
       cb(null, fileName);
