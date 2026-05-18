@@ -5,9 +5,6 @@ import SubCity from "../models/SubCity.js";
 import * as cheerio from "cheerio";
 import cloudinary from "../config/cloudinary.js";
 
-import {
-  convertCloudinaryUrl,
-} from "../utils/cloudinaryUrl.js";
 
 /* =============================
    HELPERS

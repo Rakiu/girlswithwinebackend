@@ -8,6 +8,10 @@ import {
   generateCitySchema,
 } from "../utils/seoHelper.js";
 
+import {
+  generateFileName,
+} from "../utils/generateFileName.js";
+
 /* =========================================
    BASE URL
 ========================================= */
@@ -80,7 +84,6 @@ export const processDescriptionImages =
                       }
                     );
 
-                  // SAVE ORIGINAL CLOUDINARY URL
                   $(img).attr(
                     "src",
                     uploaded.secure_url
@@ -223,16 +226,31 @@ export const createCity =
         const file =
           req.files.image;
 
+        const seoFileName =
+          `${generateFileName(
+            mainCity ||
+            heading ||
+            "city"
+          )}-${Date.now()}`;
+
         const uploadedImage =
           await cloudinary.uploader.upload(
             file.tempFilePath,
             {
               folder:
                 "cities",
+
+              public_id:
+                seoFileName,
+
+              overwrite:
+                true,
+
+              resource_type:
+                "image",
             }
           );
 
-        // SAVE ORIGINAL CLOUDINARY URL
         imageUrl =
           uploadedImage.secure_url;
       }
@@ -563,16 +581,31 @@ export const updateCity =
         const file =
           req.files.image;
 
+        const seoFileName =
+          `${generateFileName(
+            updates.mainCity ||
+            existing.mainCity ||
+            "city"
+          )}-${Date.now()}`;
+
         const uploadedImage =
           await cloudinary.uploader.upload(
             file.tempFilePath,
             {
               folder:
                 "cities",
+
+              public_id:
+                seoFileName,
+
+              overwrite:
+                true,
+
+              resource_type:
+                "image",
             }
           );
 
-        // SAVE ORIGINAL CLOUDINARY URL
         updates.imageUrl =
           uploadedImage.secure_url;
       }
@@ -679,32 +712,12 @@ export const updateCityImage =
         });
       }
 
-      const file =
-        req.files.image;
-
-      const uploadedImage =
-        await cloudinary.uploader.upload(
-          file.tempFilePath,
-          {
-            folder:
-              "cities",
-          }
+      const city =
+        await City.findById(
+          req.params.id
         );
 
-      const updated =
-        await City.findByIdAndUpdate(
-          req.params.id,
-          {
-            // SAVE ORIGINAL CLOUDINARY URL
-            imageUrl:
-              uploadedImage.secure_url,
-          },
-          {
-            new: true,
-          }
-        );
-
-      if (!updated) {
+      if (!city) {
 
         return res.status(
           404
@@ -714,6 +727,45 @@ export const updateCityImage =
             "City not found",
         });
       }
+
+      const file =
+        req.files.image;
+
+      const seoFileName =
+        `${generateFileName(
+          city.mainCity ||
+          "city"
+        )}-${Date.now()}`;
+
+      const uploadedImage =
+        await cloudinary.uploader.upload(
+          file.tempFilePath,
+          {
+            folder:
+              "cities",
+
+            public_id:
+              seoFileName,
+
+            overwrite:
+              true,
+
+            resource_type:
+              "image",
+          }
+        );
+
+      const updated =
+        await City.findByIdAndUpdate(
+          req.params.id,
+          {
+            imageUrl:
+              uploadedImage.secure_url,
+          },
+          {
+            new: true,
+          }
+        );
 
       res.json({
         success: true,
