@@ -1,6 +1,15 @@
+
+
 import City from "../models/City.js";
 import Girl from "../models/Girl.js";
 import SubCity from "../models/SubCity.js";
+
+/* =========================================================
+   CONSTANTS
+========================================================= */
+
+const OWN_DOMAIN =
+  "https://girlswithwine.com";
 
 /* =========================================================
    XML ESCAPE
@@ -40,6 +49,12 @@ const escapeXml = (
 
 /* =========================================================
    IMAGE URL FIX
+   ONLY FOR:
+   - CITY
+   - SUBCITY
+   - PROFILE
+
+   BLOG REMAINS ORIGINAL
 ========================================================= */
 
 const getImageUrl = (
@@ -48,6 +63,74 @@ const getImageUrl = (
 
   if (!url) {
     return "";
+  }
+
+  /* =========================================
+     NEXT IMAGE FIX
+  ========================================= */
+
+  if (
+    url.includes(
+      "/_next/image"
+    )
+  ) {
+
+    try {
+
+      const parsed =
+        new URL(url);
+
+      const actualUrl =
+        parsed.searchParams.get(
+          "url"
+        );
+
+      url =
+        decodeURIComponent(
+          actualUrl || ""
+        );
+
+    } catch {
+
+      return "";
+    }
+  }
+
+  /* =========================================
+     CLOUDINARY -> OWN DOMAIN
+  ========================================= */
+
+  if (
+    url.includes(
+      "res.cloudinary.com"
+    )
+  ) {
+
+    try {
+
+      const splitPart =
+        url.split(
+          "/upload/"
+        )[1];
+
+      if (!splitPart) {
+        return "";
+      }
+
+      /* REMOVE CLOUDINARY VERSION */
+
+      const cleanedPath =
+        splitPart.replace(
+          /^v\d+\//,
+          ""
+        );
+
+      return `${OWN_DOMAIN}/uploads/${cleanedPath}`;
+
+    } catch {
+
+      return url;
+    }
   }
 
   /* =========================================
@@ -60,44 +143,14 @@ const getImageUrl = (
     )
   ) {
 
-    /* =========================================
-       NEXT IMAGE FIX
-    ========================================= */
-
-    if (
-      url.includes(
-        "/_next/image"
-      )
-    ) {
-
-      try {
-
-        const parsed =
-          new URL(url);
-
-        const actualUrl =
-          parsed.searchParams.get(
-            "url"
-          );
-
-        return decodeURIComponent(
-          actualUrl || ""
-        );
-
-      } catch {
-
-        return "";
-      }
-    }
-
     return url;
   }
 
   /* =========================================
-     RELATIVE IMAGE
+     RELATIVE URL
   ========================================= */
 
-  return `https://girlswithwine.com${url}`;
+  return `${OWN_DOMAIN}${url}`;
 };
 
 /* =========================================================
@@ -127,31 +180,28 @@ export const generateSitemap =
 
     try {
 
-      const baseUrl =
-        "https://girlswithwine.com";
-
       let xml = `<?xml version="1.0" encoding="UTF-8"?>
 
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 
   <sitemap>
-    <loc>${baseUrl}/page-sitemap.xml</loc>
+    <loc>${OWN_DOMAIN}/page-sitemap.xml</loc>
   </sitemap>
 
   <sitemap>
-    <loc>${baseUrl}/city-sitemap.xml</loc>
+    <loc>${OWN_DOMAIN}/city-sitemap.xml</loc>
   </sitemap>
 
   <sitemap>
-    <loc>${baseUrl}/subcity-sitemap.xml</loc>
+    <loc>${OWN_DOMAIN}/subcity-sitemap.xml</loc>
   </sitemap>
 
   <sitemap>
-    <loc>${baseUrl}/profile-sitemap.xml</loc>
+    <loc>${OWN_DOMAIN}/profile-sitemap.xml</loc>
   </sitemap>
 
   <sitemap>
-    <loc>${baseUrl}/post-sitemap.xml</loc>
+    <loc>${OWN_DOMAIN}/post-sitemap.xml</loc>
   </sitemap>
 
 </sitemapindex>`;
@@ -197,9 +247,6 @@ export const generatePageSitemap =
 
     try {
 
-      const baseUrl =
-        "https://girlswithwine.com";
-
       const pages = [
         "",
         "about",
@@ -222,13 +269,13 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 <url>
 
   <loc>${escapeXml(
-            `${baseUrl}/${page}`
+            `${OWN_DOMAIN}/${page}`
           )}</loc>
 
   <lastmod>${new Date().toISOString()}</lastmod>
 
   <image:image>
-    <image:loc>${baseUrl}/images/girlswithwine.jpg</image:loc>
+    <image:loc>${OWN_DOMAIN}/images/girlswithwine.jpg</image:loc>
     <image:title>Girls With Wine</image:title>
   </image:image>
 
@@ -279,9 +326,6 @@ export const generateCitySitemap =
 
     try {
 
-      const baseUrl =
-        "https://girlswithwine.com";
-
       const cities =
         await City.find({
           status:
@@ -320,7 +364,7 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 <url>
 
   <loc>${escapeXml(
-            `${baseUrl}/${city.slug}`
+            `${OWN_DOMAIN}/${city.slug}`
           )}</loc>
 
   <lastmod>${city.updatedAt?.toISOString?.() || ""
@@ -330,7 +374,7 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
               ? `
   <image:image>
     <image:loc>${escapeXml(imageUrl)}</image:loc>
-    <image:title>${escapeXml(city.name || "")}</image:title>
+    <image:title>${escapeXml(city.name || city.mainCity || "")}</image:title>
   </image:image>`
               : ""
             }
@@ -381,9 +425,6 @@ export const generateSubCitySitemap =
   ) => {
 
     try {
-
-      const baseUrl =
-        "https://girlswithwine.com";
 
       const subCities =
         await SubCity.find({
@@ -436,7 +477,7 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 <url>
 
   <loc>${escapeXml(
-            `${baseUrl}/${subCity.slug}`
+            `${OWN_DOMAIN}/${subCity.slug}`
           )}</loc>
 
   <lastmod>${subCity.updatedAt?.toISOString?.() || ""
@@ -498,9 +539,6 @@ export const generateProfileSitemap =
 
     try {
 
-      const baseUrl =
-        "https://girlswithwine.com";
-
       const girls =
         await Girl.find({
           status:
@@ -534,7 +572,7 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 
             const loc =
               escapeXml(
-                `${baseUrl}/${girl.permalink}`
+                `${OWN_DOMAIN}/${girl.permalink}`
               );
 
             const imageUrl =
@@ -621,6 +659,7 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 
 /* =========================================================
    WORDPRESS BLOG SITEMAP
+   BLOG IMAGE URL REMAINS ORIGINAL
 ========================================================= */
 
 export const generatePostSitemap =
