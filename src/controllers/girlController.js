@@ -3,8 +3,13 @@ import City from "../models/City.js";
 import SubCity from "../models/SubCity.js";
 
 import * as cheerio from "cheerio";
+import axios from "axios";
+
 import cloudinary from "../config/cloudinary.js";
 
+import {
+  generateFileName,
+} from "../utils/generateFileName.js";
 
 /* =============================
    HELPERS
@@ -60,55 +65,188 @@ const processEditorImages =
 
     if (!html) return "";
 
-    const $ =
-      cheerio.load(html);
+    try {
 
-    const tasks = [];
+      const $ =
+        cheerio.load(html);
 
-    $("img").each(
-      (_, img) => {
+      const tasks = [];
 
-        const src =
-          $(img).attr("src");
+      $("img").each(
+        (_, img) => {
 
-        if (!src) return;
+          let src =
+            $(img).attr("src");
 
-        // already processed
-        if (
-          src.includes(
-            "girlswithwine.com/uploads/"
-          )
-        ) {
-          return;
-        }
+          if (!src) return;
 
-        // BASE64 IMAGE
-        if (
-          src.startsWith(
-            "data:image"
-          )
-        ) {
+          /* =========================================
+             HANDLE NEXT IMAGE
+          ========================================= */
+
+          if (
+            src.includes(
+              "/_next/image"
+            )
+          ) {
+
+            try {
+
+              const urlObj =
+                new URL(
+                  src,
+                  process.env
+                    .BASE_URL ||
+                    "https://girlswithwine.com"
+                );
+
+              src =
+                decodeURIComponent(
+                  urlObj.searchParams.get(
+                    "url"
+                  )
+                );
+
+            } catch (error) {
+
+              console.log(
+                "NEXT IMAGE ERROR =>",
+                error.message
+              );
+
+              return;
+            }
+          }
+
+          /* =========================================
+             ALREADY CLOUDINARY
+          ========================================= */
+
+          if (
+            src.includes(
+              "res.cloudinary.com"
+            )
+          ) {
+            return;
+          }
+
+          /* =========================================
+             BASE64 IMAGE
+          ========================================= */
+
+          if (
+            src.startsWith(
+              "data:image"
+            )
+          ) {
+
+            const seoFileName =
+              `${generateFileName(
+                "editor-image"
+              )}-${Date.now()}`;
+
+            tasks.push(
+
+              cloudinary.uploader
+
+                .upload(src, {
+                  folder:
+                    "girls/editor",
+
+                  public_id:
+                    seoFileName,
+
+                  overwrite:
+                    true,
+
+                  resource_type:
+                    "image",
+                })
+
+                .then(
+                  (
+                    uploaded
+                  ) => {
+
+                    $(img).attr(
+                      "src",
+                      uploaded.secure_url
+                    );
+                  }
+                )
+
+                .catch(
+                  (error) => {
+
+                    console.log(
+                      "EDITOR IMAGE ERROR =>",
+                      error.message
+                    );
+                  }
+                )
+            );
+
+            return;
+          }
+
+          /* =========================================
+             EXTERNAL IMAGE
+          ========================================= */
 
           tasks.push(
 
-            cloudinary.uploader
-
-              .upload(src, {
-                folder:
-                  "girls/editor",
-              })
+            axios({
+              url: src,
+              method: "GET",
+              responseType:
+                "arraybuffer",
+              timeout: 15000,
+            })
 
               .then(
-                (
-                  uploaded
+                async (
+                  response
                 ) => {
+
+                  const contentType =
+                    response.headers[
+                      "content-type"
+                    ] ||
+                    "image/jpeg";
+
+                  const base64 =
+                    `data:${contentType};base64,${Buffer.from(
+                      response.data
+                    ).toString(
+                      "base64"
+                    )}`;
+
+                  const seoFileName =
+                    `${generateFileName(
+                      "editor-image"
+                    )}-${Date.now()}`;
+
+                  const uploaded =
+                    await cloudinary.uploader.upload(
+                      base64,
+                      {
+                        folder:
+                          "girls/editor",
+
+                        public_id:
+                          seoFileName,
+
+                        overwrite:
+                          true,
+
+                        resource_type:
+                          "image",
+                      }
+                    );
 
                   $(img).attr(
                     "src",
-
-                    convertCloudinaryUrl(
-                      uploaded.secure_url
-                    )
+                    uploaded.secure_url
                   );
                 }
               )
@@ -117,21 +255,30 @@ const processEditorImages =
                 (error) => {
 
                   console.log(
-                    "EDITOR IMAGE ERROR =>",
+                    "EXTERNAL IMAGE ERROR =>",
                     error.message
                   );
                 }
               )
           );
         }
-      }
-    );
+      );
 
-    await Promise.all(
-      tasks
-    );
+      await Promise.all(
+        tasks
+      );
 
-    return $.html();
+      return $.html();
+
+    } catch (error) {
+
+      console.log(
+        "PROCESS EDITOR IMAGE ERROR =>",
+        error.message
+      );
+
+      return html;
+    }
   };
 
 /* =========================================
@@ -169,19 +316,33 @@ export const addGirl =
         const file =
           req.files.image;
 
+        const seoFileName =
+          `${generateFileName(
+            req.body.name ||
+            req.body.heading ||
+            "girl"
+          )}-${Date.now()}`;
+
         const uploaded =
           await cloudinary.uploader.upload(
             file.tempFilePath,
             {
               folder:
                 "girls/main",
+
+              public_id:
+                seoFileName,
+
+              overwrite:
+                true,
+
+              resource_type:
+                "image",
             }
           );
 
         imageUrl =
-          convertCloudinaryUrl(
-            uploaded.secure_url
-          );
+          uploaded.secure_url;
       }
 
       /* =========================================
@@ -204,23 +365,42 @@ export const addGirl =
           await Promise.all(
 
             files.map(
-              (file) =>
-                cloudinary.uploader.upload(
+              async (
+                file,
+                index
+              ) => {
+
+                const seoFileName =
+                  `${generateFileName(
+                    req.body.name ||
+                    req.body.heading ||
+                    "girl"
+                  )}-${Date.now()}-${index}`;
+
+                return cloudinary.uploader.upload(
                   file.tempFilePath,
                   {
                     folder:
                       "girls/gallery",
+
+                    public_id:
+                      seoFileName,
+
+                    overwrite:
+                      true,
+
+                    resource_type:
+                      "image",
                   }
-                )
+                );
+              }
             )
           );
 
         images =
           uploadedImages.map(
             (img) =>
-              convertCloudinaryUrl(
-                img.secure_url
-              )
+              img.secure_url
           );
       }
 
@@ -272,8 +452,6 @@ export const addGirl =
           imageAlt:
             req.body.imageAlt,
 
-          /* SEO */
-
           seoTitle:
             req.body
               .seoTitle,
@@ -287,8 +465,6 @@ export const addGirl =
               .seoKeywords
               ?.split(",") ||
             [],
-
-          /* OG SEO */
 
           ogTitle:
             req.body
@@ -313,8 +489,6 @@ export const addGirl =
           facebookDescription:
             req.body
               .facebookDescription,
-
-          /* PHONE */
 
           phoneNumber:
             formatNumber(
@@ -400,19 +574,33 @@ export const updateGirl =
         const file =
           req.files.image;
 
+        const seoFileName =
+          `${generateFileName(
+            req.body.name ||
+            existing.name ||
+            "girl"
+          )}-${Date.now()}`;
+
         const uploaded =
           await cloudinary.uploader.upload(
             file.tempFilePath,
             {
               folder:
                 "girls/main",
+
+              public_id:
+                seoFileName,
+
+              overwrite:
+                true,
+
+              resource_type:
+                "image",
             }
           );
 
         imageUrl =
-          convertCloudinaryUrl(
-            uploaded.secure_url
-          );
+          uploaded.secure_url;
       }
 
       /* =========================================
@@ -435,23 +623,42 @@ export const updateGirl =
           await Promise.all(
 
             files.map(
-              (file) =>
-                cloudinary.uploader.upload(
+              async (
+                file,
+                index
+              ) => {
+
+                const seoFileName =
+                  `${generateFileName(
+                    req.body.name ||
+                    existing.name ||
+                    "girl"
+                  )}-${Date.now()}-${index}`;
+
+                return cloudinary.uploader.upload(
                   file.tempFilePath,
                   {
                     folder:
                       "girls/gallery",
+
+                    public_id:
+                      seoFileName,
+
+                    overwrite:
+                      true,
+
+                    resource_type:
+                      "image",
                   }
-                )
+                );
+              }
             )
           );
 
         images =
           uploadedImages.map(
             (img) =>
-              convertCloudinaryUrl(
-                img.secure_url
-              )
+              img.secure_url
           );
       }
 
@@ -525,7 +732,8 @@ export const updateGirl =
           [],
 
         ogTitle:
-          req.body.ogTitle,
+          req.body
+            .ogTitle,
 
         ogDescription:
           req.body
