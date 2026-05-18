@@ -1,211 +1,406 @@
 import Review from "../models/Review.js";
 import Girl from "../models/Girl.js";
 
+import cloudinary from "../config/cloudinary.js";
+
+import {
+  generateFileName,
+} from "../utils/generateFileName.js";
+
 /* =============================
    ADD REVIEW
 ============================= */
-export const addReview = async (req, res) => {
-  try {
 
-    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
+export const addReview =
+  async (req, res) => {
 
-    const { girlId, userName, comment } = req.body;
-    const rating = parseInt(req.body.rating);
+    try {
 
-    if (!girlId || !userName || !rating) {
-      return res.status(400).json({
-        message: "girlId, userName and rating required"
+      const {
+        girlId,
+        userName,
+        comment,
+      } = req.body;
+
+      const rating =
+        parseInt(
+          req.body.rating
+        );
+
+      if (
+        !girlId ||
+        !userName ||
+        !rating
+      ) {
+
+        return res.status(
+          400
+        ).json({
+          message:
+            "girlId, userName and rating required",
+        });
+      }
+
+      const girl =
+        await Girl.findById(
+          girlId
+        );
+
+      if (!girl) {
+
+        return res.status(
+          404
+        ).json({
+          message:
+            "Girl not found",
+        });
+      }
+
+      let userImage = "";
+
+      /* =========================================
+         USER IMAGE UPLOAD
+      ========================================= */
+
+      if (
+        req.files &&
+        req.files.userImage
+      ) {
+
+        const file =
+          req.files.userImage;
+
+        const seoFileName =
+          `${generateFileName(
+            userName ||
+            "review-user"
+          )}-${Date.now()}`;
+
+        const uploadedImage =
+          await cloudinary.uploader.upload(
+            file.tempFilePath,
+            {
+              folder:
+                "reviews/users",
+
+              public_id:
+                seoFileName,
+
+              overwrite:
+                true,
+
+              resource_type:
+                "image",
+            }
+          );
+
+        userImage =
+          uploadedImage.secure_url;
+      }
+
+      const review =
+        await Review.create({
+
+          girl: girlId,
+
+          userName,
+
+          comment,
+
+          rating,
+
+          userImage,
+
+          status: "Pending",
+        });
+
+      res.json({
+        message:
+          "Review submitted. Waiting for approval",
+
+        data: review,
+      });
+
+    } catch (error) {
+
+      res.status(500).json({
+        message:
+          error.message,
       });
     }
-
-    const girl = await Girl.findById(girlId);
-
-    if (!girl) {
-      return res.status(404).json({
-        message: "Girl not found"
-      });
-    }
-
-    let userImage = "";
-
-    /* IMAGE SAVE SAME AS GIRL CONTROLLER */
-
-    if (req.file) {
-      userImage = `${baseUrl}/uploads/reviews/${req.file.filename}`;
-    }
-
-    const review = await Review.create({
-      girl: girlId,
-      userName,
-      comment,
-      rating,
-      userImage,
-      status: "Pending"
-    });
-
-    res.json({
-      message: "Review submitted. Waiting for approval",
-      data: review
-    });
-
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+  };
 
 /* =============================
    GET ALL REVIEWS (ADMIN)
 ============================= */
-export const getAllReviews = async (req, res) => {
-  try {
 
-    const reviews = await Review.find()
-      .populate({
-        path: "girl",
-        select: "name imageUrl rating"
-      })
-      .sort({ createdAt: -1 });
+export const getAllReviews =
+  async (req, res) => {
 
-    res.json(reviews);
+    try {
 
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+      const reviews =
+        await Review.find()
 
+          .populate({
+            path: "girl",
+
+            select:
+              "name imageUrl rating",
+          })
+
+          .sort({
+            createdAt: -1,
+          });
+
+      res.json(reviews);
+
+    } catch (error) {
+
+      res.status(500).json({
+        message:
+          error.message,
+      });
+    }
+  };
 
 /* =============================
    GET APPROVED REVIEWS BY GIRL
 ============================= */
-export const getReviewsByGirl = async (req, res) => {
-  try {
 
-    const reviews = await Review.find({
-      girl: req.params.girlId,
-      status: "Approved"
-    }).sort({ createdAt: -1 });
+export const getReviewsByGirl =
+  async (req, res) => {
 
-    res.json(reviews);
+    try {
 
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+      const reviews =
+        await Review.find({
+          girl:
+            req.params
+              .girlId,
 
+          status:
+            "Approved",
+        }).sort({
+          createdAt: -1,
+        });
+
+      res.json(reviews);
+
+    } catch (error) {
+
+      res.status(500).json({
+        message:
+          error.message,
+      });
+    }
+  };
 
 /* =============================
    APPROVE REVIEW
 ============================= */
-export const approveReview = async (req, res) => {
-  try {
 
-    const review = await Review.findById(req.params.id);
+export const approveReview =
+  async (req, res) => {
 
-    if (!review) {
-      return res.status(404).json({
-        message: "Review not found"
+    try {
+
+      const review =
+        await Review.findById(
+          req.params.id
+        );
+
+      if (!review) {
+
+        return res.status(
+          404
+        ).json({
+          message:
+            "Review not found",
+        });
+      }
+
+      review.status =
+        "Approved";
+
+      await review.save();
+
+      /* =========================================
+         UPDATE GIRL RATING
+      ========================================= */
+
+      const stats =
+        await Review.aggregate([
+          {
+            $match: {
+              girl:
+                review.girl,
+
+              status:
+                "Approved",
+            },
+          },
+
+          {
+            $group: {
+              _id:
+                "$girl",
+
+              avgRating:
+                {
+                  $avg:
+                    "$rating",
+                },
+
+              totalReviews:
+                {
+                  $sum: 1,
+                },
+            },
+          },
+        ]);
+
+      const avgRating =
+        stats[0]
+          ?.avgRating || 0;
+
+      const totalReviews =
+        stats[0]
+          ?.totalReviews ||
+        0;
+
+      await Girl.findByIdAndUpdate(
+        review.girl,
+        {
+          rating:
+            avgRating.toFixed(
+              1
+            ),
+
+          totalReviews,
+        }
+      );
+
+      res.json({
+        message:
+          "Review approved",
+      });
+
+    } catch (error) {
+
+      res.status(500).json({
+        message:
+          error.message,
       });
     }
-
-    review.status = "Approved";
-    await review.save();
-
-    /* UPDATE GIRL RATING */
-
-    const stats = await Review.aggregate([
-      { $match: { girl: review.girl, status: "Approved" } },
-      {
-        $group: {
-          _id: "$girl",
-          avgRating: { $avg: "$rating" },
-          totalReviews: { $sum: 1 }
-        }
-      }
-    ]);
-
-    const avgRating = stats[0]?.avgRating || 0;
-    const totalReviews = stats[0]?.totalReviews || 0;
-
-    await Girl.findByIdAndUpdate(review.girl, {
-      rating: avgRating.toFixed(1),
-      totalReviews
-    });
-
-    res.json({
-      message: "Review approved"
-    });
-
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
+  };
 
 /* =============================
    REJECT REVIEW
 ============================= */
-export const rejectReview = async (req, res) => {
-  try {
 
-    const review = await Review.findById(req.params.id);
+export const rejectReview =
+  async (req, res) => {
 
-    if (!review) {
-      return res.status(404).json({
-        message: "Review not found"
+    try {
+
+      const review =
+        await Review.findById(
+          req.params.id
+        );
+
+      if (!review) {
+
+        return res.status(
+          404
+        ).json({
+          message:
+            "Review not found",
+        });
+      }
+
+      review.status =
+        "Rejected";
+
+      await review.save();
+
+      res.json({
+        message:
+          "Review rejected",
+      });
+
+    } catch (error) {
+
+      res.status(500).json({
+        message:
+          error.message,
       });
     }
-
-    review.status = "Rejected";
-    await review.save();
-
-    res.json({
-      message: "Review rejected"
-    });
-
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
+  };
 
 /* =============================
    DELETE REVIEW
 ============================= */
-export const deleteReview = async (req, res) => {
-  try {
 
-    await Review.findByIdAndDelete(req.params.id);
+export const deleteReview =
+  async (req, res) => {
 
-    res.json({
-      message: "Review deleted"
-    });
+    try {
 
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+      await Review.findByIdAndDelete(
+        req.params.id
+      );
 
+      res.json({
+        message:
+          "Review deleted",
+      });
+
+    } catch (error) {
+
+      res.status(500).json({
+        message:
+          error.message,
+      });
+    }
+  };
 
 /* =============================
-   TOP REVIEWS (LANDING PAGE)
+   TOP REVIEWS
 ============================= */
-export const getTopReviews = async (req, res) => {
-  try {
 
-    const reviews = await Review.find({
-      status: "Approved"
-    })
-      .populate({
-        path: "girl",
-        select: "name imageUrl imageAlt nameSlug seoSlug permalink"
+export const getTopReviews =
+  async (req, res) => {
 
-      })
-      .sort({ rating: -1, createdAt: -1 }) 
-      .limit(3);
+    try {
 
-    res.json(reviews);
+      const reviews =
+        await Review.find({
+          status:
+            "Approved",
+        })
 
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+          .populate({
+            path: "girl",
+
+            select:
+              "name imageUrl imageAlt nameSlug seoSlug permalink",
+          })
+
+          .sort({
+            rating: -1,
+            createdAt: -1,
+          })
+
+          .limit(3);
+
+      res.json(reviews);
+
+    } catch (error) {
+
+      res.status(500).json({
+        message:
+          error.message,
+      });
+    }
+  };

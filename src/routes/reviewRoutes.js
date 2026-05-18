@@ -7,41 +7,61 @@ import {
   deleteReview,
   approveReview,
   rejectReview,
-  getTopReviews
+  getTopReviews,
 } from "../controllers/reviewController.js";
 
-import { createUploader } from "../utils/multerUpload.js";
-import { authMiddleware } from "../middleware/authMiddleware.js";
+import {
+  authMiddleware,
+} from "../middleware/authMiddleware.js";
 
-const router = express.Router();
+const router =
+  express.Router();
 
-const reviewUpload = createUploader("reviews");
-
-/* -----------------------------
+/* =============================
    PUBLIC
------------------------------ */
+============================= */
 
 router.post(
   "/add",
-  reviewUpload.single("userImage"),
   addReview
 );
 
-router.get("/girl/:girlId", getReviewsByGirl);
+router.get(
+  "/girl/:girlId",
+  getReviewsByGirl
+);
 
+router.get(
+  "/top",
+  getTopReviews
+);
 
-/* -----------------------------
+/* =============================
    ADMIN
------------------------------ */
+============================= */
 
-router.get("/", authMiddleware, getAllReviews);
+router.get(
+  "/",
+  authMiddleware,
+  getAllReviews
+);
 
-router.patch("/approve/:id", authMiddleware, approveReview);
+router.patch(
+  "/approve/:id",
+  authMiddleware,
+  approveReview
+);
 
-router.patch("/reject/:id", authMiddleware, rejectReview);
+router.patch(
+  "/reject/:id",
+  authMiddleware,
+  rejectReview
+);
 
-router.delete("/:id", authMiddleware, deleteReview);
-
-router.get("/top", getTopReviews);
+router.delete(
+  "/:id",
+  authMiddleware,
+  deleteReview
+);
 
 export default router;
