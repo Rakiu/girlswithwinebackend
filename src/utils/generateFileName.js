@@ -3,13 +3,33 @@ export const generateFileName = (
 ) => {
 
   if (!text) {
-    return Date.now().toString();
+
+    return `file-${Date.now()}`;
   }
 
   return text
+
+    // lowercase
     .toLowerCase()
+
+    // trim spaces
     .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
+
+    // remove special chars
+    .replace(
+      /[^a-z0-9\s-]/g,
+      ""
+    )
+
+    // replace spaces with -
     .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
+
+    // remove multiple -
+    .replace(/-+/g, "-")
+
+    // remove starting -
+    .replace(/^-+/, "")
+
+    // remove ending -
+    .replace(/-+$/, "");
 };
