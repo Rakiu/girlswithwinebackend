@@ -5,25 +5,97 @@ import SubCity from "../models/SubCity.js";
 /* =========================================================
    XML ESCAPE
 ========================================================= */
-const escapeXml = (unsafe = "") => {
+
+const escapeXml = (
+  unsafe = ""
+) => {
+
   return String(unsafe)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+
+    .replace(
+      /</g,
+      "&lt;"
+    )
+
+    .replace(
+      />/g,
+      "&gt;"
+    )
+
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+
+    .replace(
+      /'/g,
+      "&apos;"
+    );
 };
 
 /* =========================================================
    IMAGE URL FIX
 ========================================================= */
-const getImageUrl = (url = "") => {
 
-  if (!url) return "";
+const getImageUrl = (
+  url = ""
+) => {
 
-  if (url.startsWith("http")) {
+  if (!url) {
+    return "";
+  }
+
+  /* =========================================
+     ALREADY FULL URL
+  ========================================= */
+
+  if (
+    url.startsWith(
+      "http"
+    )
+  ) {
+
+    /* =========================================
+       NEXT IMAGE FIX
+    ========================================= */
+
+    if (
+      url.includes(
+        "/_next/image"
+      )
+    ) {
+
+      try {
+
+        const parsed =
+          new URL(url);
+
+        const actualUrl =
+          parsed.searchParams.get(
+            "url"
+          );
+
+        return decodeURIComponent(
+          actualUrl || ""
+        );
+
+      } catch {
+
+        return "";
+      }
+    }
+
     return url;
   }
+
+  /* =========================================
+     RELATIVE IMAGE
+  ========================================= */
 
   return `https://girlswithwine.com${url}`;
 };
@@ -31,25 +103,34 @@ const getImageUrl = (url = "") => {
 /* =========================================================
    CACHE HEADER
 ========================================================= */
-const setCacheHeaders = (res) => {
+
+const setCacheHeaders = (
+  res
+) => {
 
   res.setHeader(
     "Cache-Control",
+
     "public, s-maxage=86400, stale-while-revalidate"
   );
-
 };
 
 /* =========================================================
    MAIN SITEMAP INDEX
 ========================================================= */
-export const generateSitemap = async (req, res) => {
 
-  try {
+export const generateSitemap =
+  async (
+    req,
+    res
+  ) => {
 
-    const baseUrl = "https://girlswithwine.com";
+    try {
 
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+      const baseUrl =
+        "https://girlswithwine.com";
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>
 
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 
@@ -75,54 +156,74 @@ export const generateSitemap = async (req, res) => {
 
 </sitemapindex>`;
 
-    res.header("Content-Type", "application/xml");
+      res.header(
+        "Content-Type",
+        "application/xml"
+      );
 
-    setCacheHeaders(res);
+      setCacheHeaders(
+        res
+      );
 
-    return res.status(200).send(xml);
+      return res
+        .status(200)
+        .send(xml);
 
-  } catch (error) {
+    } catch (error) {
 
-    console.log("❌ Sitemap Error:", error);
+      console.log(
+        "❌ Sitemap Error:",
+        error
+      );
 
-    return res.status(500).json({
-      message: "Failed to generate sitemap"
-    });
-
-  }
-
-};
+      return res.status(
+        500
+      ).json({
+        message:
+          "Failed to generate sitemap",
+      });
+    }
+  };
 
 /* =========================================================
    PAGE SITEMAP
 ========================================================= */
-export const generatePageSitemap = async (req, res) => {
 
-  try {
+export const generatePageSitemap =
+  async (
+    req,
+    res
+  ) => {
 
-    const baseUrl = "https://girlswithwine.com";
+    try {
 
-    const pages = [
-      "",
-      "about",
-      "terms",
-      "privacy",
-      "contact",
-    ];
+      const baseUrl =
+        "https://girlswithwine.com";
 
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+      const pages = [
+        "",
+        "about",
+        "terms",
+        "privacy",
+        "contact",
+      ];
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>
 
 <urlset
 xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
 xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 >`;
 
-    pages.forEach((page) => {
+      pages.forEach(
+        (page) => {
 
-      xml += `
+          xml += `
 <url>
 
-  <loc>${escapeXml(`${baseUrl}/${page}`)}</loc>
+  <loc>${escapeXml(
+            `${baseUrl}/${page}`
+          )}</loc>
 
   <lastmod>${new Date().toISOString()}</lastmod>
 
@@ -132,360 +233,512 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
   </image:image>
 
 </url>`;
+        }
+      );
 
-    });
-
-    xml += `
+      xml += `
 </urlset>`;
 
-    res.header("Content-Type", "application/xml");
+      res.header(
+        "Content-Type",
+        "application/xml"
+      );
 
-    setCacheHeaders(res);
+      setCacheHeaders(
+        res
+      );
 
-    return res.status(200).send(xml);
+      return res
+        .status(200)
+        .send(xml);
 
-  } catch (error) {
+    } catch (error) {
 
-    console.log(error);
+      console.log(
+        error
+      );
 
-    return res.status(500).json({
-      message: "Page sitemap failed"
-    });
-
-  }
-
-};
+      return res.status(
+        500
+      ).json({
+        message:
+          "Page sitemap failed",
+      });
+    }
+  };
 
 /* =========================================================
    CITY SITEMAP
 ========================================================= */
-export const generateCitySitemap = async (req, res) => {
 
-  try {
+export const generateCitySitemap =
+  async (
+    req,
+    res
+  ) => {
 
-    const baseUrl = "https://girlswithwine.com";
+    try {
 
-    const cities = await City.find({
-      status: "Active"
-    });
+      const baseUrl =
+        "https://girlswithwine.com";
 
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+      const cities =
+        await City.find({
+          status:
+            "Active",
+        });
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>
 
 <urlset
 xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
 xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 >`;
 
-    cities.forEach((city) => {
+      cities.forEach(
+        (city) => {
 
-      if (
-        !city?.slug ||
-        city.slug.includes("undefined") ||
-        city.slug.includes("null")
-      ) {
-        return;
-      }
+          if (
+            !city?.slug ||
+            city.slug.includes(
+              "undefined"
+            ) ||
+            city.slug.includes(
+              "null"
+            )
+          ) {
 
-      const imageUrl = getImageUrl(city.imageUrl);
+            return;
+          }
 
-      xml += `
+          const imageUrl =
+            getImageUrl(
+              city.imageUrl
+            );
+
+          xml += `
 <url>
 
-  <loc>${escapeXml(`${baseUrl}/${city.slug}`)}</loc>
+  <loc>${escapeXml(
+            `${baseUrl}/${city.slug}`
+          )}</loc>
 
-  <lastmod>${city.updatedAt?.toISOString?.() || ""}</lastmod>
+  <lastmod>${city.updatedAt?.toISOString?.() || ""
+            }</lastmod>
 
-  ${
-    imageUrl
-      ? `
+  ${imageUrl
+              ? `
   <image:image>
     <image:loc>${escapeXml(imageUrl)}</image:loc>
     <image:title>${escapeXml(city.name || "")}</image:title>
   </image:image>`
-      : ""
-  }
+              : ""
+            }
 
 </url>`;
+        }
+      );
 
-    });
-
-    xml += `
+      xml += `
 </urlset>`;
 
-    res.header("Content-Type", "application/xml");
+      res.header(
+        "Content-Type",
+        "application/xml"
+      );
 
-    setCacheHeaders(res);
+      setCacheHeaders(
+        res
+      );
 
-    return res.status(200).send(xml);
+      return res
+        .status(200)
+        .send(xml);
 
-  } catch (error) {
+    } catch (error) {
 
-    console.log(error);
+      console.log(
+        error
+      );
 
-    return res.status(500).json({
-      message: "City sitemap failed"
-    });
-
-  }
-
-};
+      return res.status(
+        500
+      ).json({
+        message:
+          "City sitemap failed",
+      });
+    }
+  };
 
 /* =========================================================
    SUBCITY SITEMAP
 ========================================================= */
-export const generateSubCitySitemap = async (req, res) => {
 
-  try {
+export const generateSubCitySitemap =
+  async (
+    req,
+    res
+  ) => {
 
-    const baseUrl = "https://girlswithwine.com";
+    try {
 
-    const subCities = await SubCity.find({
-      $or: [
-        { status: "Active" },
-        { status: { $exists: false } }
-      ]
-    });
+      const baseUrl =
+        "https://girlswithwine.com";
 
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+      const subCities =
+        await SubCity.find({
+          $or: [
+            {
+              status:
+                "Active",
+            },
+            {
+              status:
+                {
+                  $exists:
+                    false,
+                },
+            },
+          ],
+        });
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>
 
 <urlset
 xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
 xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 >`;
 
-    subCities.forEach((subCity) => {
+      subCities.forEach(
+        (
+          subCity
+        ) => {
 
-      if (
-        !subCity?.slug ||
-        subCity.slug.includes("undefined") ||
-        subCity.slug.includes("null")
-      ) {
-        return;
-      }
+          if (
+            !subCity?.slug ||
+            subCity.slug.includes(
+              "undefined"
+            ) ||
+            subCity.slug.includes(
+              "null"
+            )
+          ) {
 
-      const imageUrl = getImageUrl(subCity.imageUrl);
+            return;
+          }
 
-      xml += `
+          const imageUrl =
+            getImageUrl(
+              subCity.imageUrl
+            );
+
+          xml += `
 <url>
 
-  <loc>${escapeXml(`${baseUrl}/${subCity.slug}`)}</loc>
+  <loc>${escapeXml(
+            `${baseUrl}/${subCity.slug}`
+          )}</loc>
 
-  <lastmod>${subCity.updatedAt?.toISOString?.() || ""}</lastmod>
+  <lastmod>${subCity.updatedAt?.toISOString?.() || ""
+            }</lastmod>
 
-  ${
-    imageUrl
-      ? `
+  ${imageUrl
+              ? `
   <image:image>
     <image:loc>${escapeXml(imageUrl)}</image:loc>
     <image:title>${escapeXml(subCity.name || "")}</image:title>
   </image:image>`
-      : ""
-  }
+              : ""
+            }
 
 </url>`;
+        }
+      );
 
-    });
-
-    xml += `
+      xml += `
 </urlset>`;
 
-    res.header("Content-Type", "application/xml");
+      res.header(
+        "Content-Type",
+        "application/xml"
+      );
 
-    setCacheHeaders(res);
+      setCacheHeaders(
+        res
+      );
 
-    return res.status(200).send(xml);
+      return res
+        .status(200)
+        .send(xml);
 
-  } catch (error) {
+    } catch (error) {
 
-    console.log(error);
+      console.log(
+        error
+      );
 
-    return res.status(500).json({
-      message: "SubCity sitemap failed"
-    });
-
-  }
-
-};
+      return res.status(
+        500
+      ).json({
+        message:
+          "SubCity sitemap failed",
+      });
+    }
+  };
 
 /* =========================================================
    PROFILE SITEMAP
 ========================================================= */
-export const generateProfileSitemap = async (req, res) => {
 
-  try {
+export const generateProfileSitemap =
+  async (
+    req,
+    res
+  ) => {
 
-    const baseUrl = "https://girlswithwine.com";
+    try {
 
-    const girls = await Girl.find({
-      status: "Active"
-    });
+      const baseUrl =
+        "https://girlswithwine.com";
 
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+      const girls =
+        await Girl.find({
+          status:
+            "Active",
+        });
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>
 
 <urlset
 xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
 xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 >`;
 
-    girls.forEach((girl) => {
+      girls.forEach(
+        (girl) => {
 
-      try {
+          try {
 
-        if (
-          !girl?.permalink ||
-          girl.permalink.includes("undefined") ||
-          girl.permalink.includes("null")
-        ) {
-          return;
-        }
+            if (
+              !girl?.permalink ||
+              girl.permalink.includes(
+                "undefined"
+              ) ||
+              girl.permalink.includes(
+                "null"
+              )
+            ) {
 
-        const loc = escapeXml(
-          `${baseUrl}/${girl.permalink}`
-        );
+              return;
+            }
 
-        const imageUrl = getImageUrl(girl?.imageUrl);
+            const loc =
+              escapeXml(
+                `${baseUrl}/${girl.permalink}`
+              );
 
-        const title = escapeXml(
-          girl?.name || "Escort Profile"
-        );
+            const imageUrl =
+              getImageUrl(
+                girl?.imageUrl
+              );
 
-        const lastmod = girl?.updatedAt
-          ? girl.updatedAt.toISOString()
-          : "";
+            const title =
+              escapeXml(
+                girl?.name ||
+                "Escort Profile"
+              );
 
-        xml += `
+            const lastmod =
+              girl?.updatedAt
+                ? girl.updatedAt.toISOString()
+                : "";
+
+            xml += `
 <url>
 
   <loc>${loc}</loc>
 
   <lastmod>${lastmod}</lastmod>
 
-  ${
-    imageUrl
-      ? `
+  ${imageUrl
+                ? `
   <image:image>
     <image:loc>${escapeXml(imageUrl)}</image:loc>
     <image:title>${title}</image:title>
   </image:image>`
-      : ""
-  }
+                : ""
+              }
 
 </url>`;
 
-      } catch (innerError) {
+          } catch (
+            innerError
+          ) {
 
-        console.log(
-          "❌ GIRL XML ERROR:",
-          girl?._id,
-          innerError.message
-        );
+            console.log(
+              "❌ GIRL XML ERROR:",
+              girl?._id,
+              innerError.message
+            );
+          }
+        }
+      );
 
-      }
-
-    });
-
-    xml += `
+      xml += `
 </urlset>`;
 
-    res.setHeader("Content-Type", "application/xml");
+      res.setHeader(
+        "Content-Type",
+        "application/xml"
+      );
 
-    setCacheHeaders(res);
+      setCacheHeaders(
+        res
+      );
 
-    return res.status(200).send(xml);
+      return res
+        .status(200)
+        .send(xml);
 
-  } catch (error) {
+    } catch (error) {
 
-    console.log("❌ PROFILE SITEMAP ERROR:");
-    console.log(error);
+      console.log(
+        "❌ PROFILE SITEMAP ERROR:"
+      );
 
-    return res.status(500).json({
-      message: error.message
-    });
+      console.log(
+        error
+      );
 
-  }
-
-};
+      return res.status(
+        500
+      ).json({
+        message:
+          error.message,
+      });
+    }
+  };
 
 /* =========================================================
    WORDPRESS BLOG SITEMAP
 ========================================================= */
-export const generatePostSitemap = async (req, res) => {
 
-  try {
+export const generatePostSitemap =
+  async (
+    req,
+    res
+  ) => {
 
-    const baseUrl = "https://blog.girlswithwine.com";
+    try {
 
-    const response = await fetch(
-      "https://blog.girlswithwine.com/wp-json/wp/v2/posts?_embed&per_page=100"
-    );
+      const baseUrl =
+        "https://blog.girlswithwine.com";
 
-    const blogs = await response.json();
+      const response =
+        await fetch(
+          "https://blog.girlswithwine.com/wp-json/wp/v2/posts?_embed&per_page=100"
+        );
 
-    if (!Array.isArray(blogs)) {
+      const blogs =
+        await response.json();
 
-      throw new Error("Invalid blog response");
+      if (
+        !Array.isArray(
+          blogs
+        )
+      ) {
 
-    }
+        throw new Error(
+          "Invalid blog response"
+        );
+      }
 
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>
 
 <urlset
 xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
 xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 >`;
 
-    blogs.forEach((blog) => {
+      blogs.forEach(
+        (blog) => {
 
-      if (
-        !blog?.slug ||
-        blog.slug.includes("undefined") ||
-        blog.slug.includes("null")
-      ) {
-        return;
-      }
+          if (
+            !blog?.slug ||
+            blog.slug.includes(
+              "undefined"
+            ) ||
+            blog.slug.includes(
+              "null"
+            )
+          ) {
 
-      const image =
-        blog?._embedded?.["wp:featuredmedia"]?.[0]?.source_url || "";
+            return;
+          }
 
-      xml += `
+          const image =
+            blog?._embedded?.[
+              "wp:featuredmedia"
+            ]?.[0]
+              ?.source_url ||
+            "";
+
+          const imageUrl =
+            getImageUrl(
+              image
+            );
+
+          xml += `
 <url>
 
-  <loc>${escapeXml(`${baseUrl}${blog.slug}`)}</loc>
+  <loc>${escapeXml(
+            `${baseUrl}/${blog.slug}`
+          )}</loc>
 
-  <lastmod>${new Date(blog.modified).toISOString()}</lastmod>
+  <lastmod>${new Date(
+            blog.modified
+          ).toISOString()}</lastmod>
 
-  ${
-    image
-      ? `
+  ${imageUrl
+              ? `
   <image:image>
-    <image:loc>${escapeXml(image)}</image:loc>
+    <image:loc>${escapeXml(imageUrl)}</image:loc>
     <image:title>${escapeXml(blog.title?.rendered || "")}</image:title>
   </image:image>`
-      : ""
-  }
+              : ""
+            }
 
 </url>`;
+        }
+      );
 
-    });
-
-    xml += `
+      xml += `
 </urlset>`;
 
-    res.header("Content-Type", "application/xml");
+      res.header(
+        "Content-Type",
+        "application/xml"
+      );
 
-    setCacheHeaders(res);
+      setCacheHeaders(
+        res
+      );
 
-    return res.status(200).send(xml);
+      return res
+        .status(200)
+        .send(xml);
 
-  } catch (error) {
+    } catch (error) {
 
-    console.log(error);
+      console.log(
+        error
+      );
 
-    return res.status(500).json({
-      message: "Post sitemap failed"
-    });
-
-  }
-
-};
- 
+      return res.status(
+        500
+      ).json({
+        message:
+          "Post sitemap failed",
+      });
+    }
+  };
