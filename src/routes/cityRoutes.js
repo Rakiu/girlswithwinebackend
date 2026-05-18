@@ -8,68 +8,84 @@ import {
   deleteCity,
   updateCityImage,
   toggleCityStatus,
-  getCityPage
+  getCityPage,
 } from "../controllers/cityController.js";
 
 import { generateSitemap } from "../controllers/sitemapController.js";
+
 import { authMiddleware } from "../middleware/authMiddleware.js";
-import { createUploader } from "../utils/multerUpload.js";
 
 const router = express.Router();
 
-const uploadCity = createUploader("cities");
+/* =========================================
+   PUBLIC
+========================================= */
 
+router.get(
+  "/sitemap.xml",
+  generateSitemap
+);
 
-// ---------------- PUBLIC ----------------
+// GET ALL
+router.get(
+  "/",
+  getCities
+);
 
-router.get("/sitemap.xml", generateSitemap);
+// ADMIN GET
+router.get(
+  "/admin/:id",
+  authMiddleware,
+  getCityById
+);
 
-// better REST
-router.get("/", getCities);
+/* =========================================
+   ADMIN
+========================================= */
 
-// 🔒 protect admin
-router.get("/admin/:id", authMiddleware, getCityById);
-
-
-// ---------------- ADMIN ----------------
-
+// CREATE
 router.post(
   "/create",
   authMiddleware,
-  uploadCity.single("image"),
   createCity
 );
 
+// UPDATE
 router.put(
   "/update/:id",
   authMiddleware,
-  uploadCity.single("image"),
   updateCity
 );
 
+// DELETE
 router.delete(
   "/delete/:id",
   authMiddleware,
   deleteCity
 );
 
+// UPDATE IMAGE
 router.put(
   "/image/:id",
   authMiddleware,
-  uploadCity.single("image"),
   updateCityImage
 );
 
+// STATUS
 router.patch(
   "/status/:id",
   authMiddleware,
   toggleCityStatus
 );
 
+/* =========================================
+   SEO PAGE
+========================================= */
 
-// ---------------- SEO PAGE ----------------
-// ALWAYS LAST (IMPORTANT)
-
-router.get("/:citySlug", getCityPage);
+// ALWAYS LAST
+router.get(
+  "/:citySlug",
+  getCityPage
+);
 
 export default router;

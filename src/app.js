@@ -2,6 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
+import fileUpload from "express-fileupload";
 
 // ROUTES
 import adminRoutes from "./routes/adminRoutes.js";
@@ -22,8 +23,15 @@ dotenv.config();
 const app = express();
 
 /* =========================================
+   TRUST PROXY
+========================================= */
+
+app.set("trust proxy", 1);
+
+/* =========================================
    CORS
 ========================================= */
+
 app.use(
   cors({
     origin: [
@@ -38,12 +46,36 @@ app.use(
 /* =========================================
    BODY PARSER
 ========================================= */
+
 app.use(express.json({ limit: "100mb" }));
-app.use(express.urlencoded({ extended: true, limit: "100mb" }));
+
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: "100mb",
+  })
+);
+
+/* =========================================
+   FILE UPLOAD
+========================================= */
+
+app.use(
+  fileUpload({
+    useTempFiles: true,
+    tempFileDir: "/tmp/",
+    limits: {
+      fileSize: 100 * 1024 * 1024, // 100MB
+    },
+    abortOnLimit: true,
+    responseOnLimit: "File size too large",
+  })
+);
 
 /* =========================================
    DATABASE CONNECTION
 ========================================= */
+
 const connectDB = async () => {
   try {
     if (mongoose.connection.readyState === 0) {
@@ -61,11 +93,10 @@ await connectDB();
 /* =========================================
    TEST ROUTES
 ========================================= */
+
 app.get("/", (req, res) => {
   res.send("Backend Working 🚀");
 });
-
-
 
 app.get("/test", (req, res) => {
   res.status(200).json({
@@ -99,6 +130,7 @@ app.use("/", redirectRoutes);
 /* =========================================
    404 HANDLER
 ========================================= */
+
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -109,9 +141,11 @@ app.use((req, res) => {
 /* =========================================
    ERROR HANDLER
 ========================================= */
+
 app.use((err, req, res, next) => {
   console.error("❌ SERVER ERROR:", err);
 
+  // Payload Too Large
   if (err.type === "entity.too.large") {
     return res.status(413).json({
       success: false,
@@ -119,6 +153,33 @@ app.use((err, req, res, next) => {
     });
   }
 
+  // MongoDB Validation
+  if (err.name === "ValidationError") {
+    return res.status(400).json({
+      success: false,
+      message: Object.values(err.errors)
+        .map((e) => e.message)
+        .join(", "),
+    });
+  }
+
+  // MongoDB Cast Error
+  if (err.name === "CastError") {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid ID",
+    });
+  }
+
+  // Cloudinary Error
+  if (err.http_code) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+
+  // Default Error
   res.status(err.status || 500).json({
     success: false,
     message: err.message || "Internal Server Error",
@@ -128,4 +189,5 @@ app.use((err, req, res, next) => {
 /* =========================================
    EXPORT APP
 ========================================= */
+
 export default app;

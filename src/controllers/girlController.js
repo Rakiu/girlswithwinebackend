@@ -3,38 +3,24 @@ import City from "../models/City.js";
 import SubCity from "../models/SubCity.js";
 
 import * as cheerio from "cheerio";
-import axios from "axios";
+import cloudinary from "../config/cloudinary.js";
 
-import fs from "fs";
-import path from "path";
+import {
+  convertCloudinaryUrl,
+} from "../utils/cloudinaryUrl.js";
 
 /* =============================
    HELPERS
 ============================= */
 
 const formatNumber = (num) => {
+
   if (!num) return "";
 
   return num.startsWith("+91")
     ? num
     : `+91${num}`;
 };
-
-/* =========================================
-   VERCEL SAFE UPLOAD PATH
-========================================= */
-
-const uploadDir = "/tmp/uploads/girls";
-
-/* =========================================
-   CREATE FOLDER
-========================================= */
-
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, {
-    recursive: true,
-  });
-}
 
 /* =========================================
    PARSE CITY
@@ -52,7 +38,8 @@ const parseCity = (city) => {
 
     try {
 
-      const parsed = JSON.parse(city);
+      const parsed =
+        JSON.parse(city);
 
       return Array.isArray(parsed)
         ? parsed
@@ -61,516 +48,872 @@ const parseCity = (city) => {
     } catch {
 
       return [city];
-
     }
   }
 
   return [];
 };
 
-/* =============================
-   IMAGE PROCESS
-============================= */
+/* =========================================
+   PROCESS EDITOR IMAGES
+========================================= */
 
-const processEditorImages = async (html) => {
+const processEditorImages =
+  async (html) => {
 
-  if (!html) return "";
+    if (!html) return "";
 
-  const $ = cheerio.load(html);
+    const $ =
+      cheerio.load(html);
 
-  const tasks = [];
+    const tasks = [];
 
-  $("img").each((_, img) => {
+    $("img").each(
+      (_, img) => {
 
-    const src = $(img).attr("src");
+        const src =
+          $(img).attr("src");
 
-    if (!src) return;
+        if (!src) return;
 
-    // already uploaded
-    if (src.includes("/uploads/girls/")) {
-      return;
-    }
+        // already processed
+        if (
+          src.includes(
+            "girlswithwine.com/uploads/"
+          )
+        ) {
+          return;
+        }
 
-    const fileName =
-      `${Date.now()}-${Math.floor(Math.random() * 9999)}.png`;
+        // BASE64 IMAGE
+        if (
+          src.startsWith(
+            "data:image"
+          )
+        ) {
 
-    const savePath = path.join(uploadDir, fileName);
+          tasks.push(
 
-    /* =========================================
-       BASE64 IMAGE
-    ========================================= */
+            cloudinary.uploader
 
-    if (src.startsWith("data:image")) {
+              .upload(src, {
+                folder:
+                  "girls/editor",
+              })
 
-      const base64Data =
-        src.replace(/^data:image\/\w+;base64,/, "");
+              .then(
+                (
+                  uploaded
+                ) => {
 
-      tasks.push(
-        new Promise((resolve) => {
+                  $(img).attr(
+                    "src",
 
-          fs.writeFileSync(
-            savePath,
-            Buffer.from(base64Data, "base64")
+                    convertCloudinaryUrl(
+                      uploaded.secure_url
+                    )
+                  );
+                }
+              )
+
+              .catch(
+                (error) => {
+
+                  console.log(
+                    "EDITOR IMAGE ERROR =>",
+                    error.message
+                  );
+                }
+              )
           );
+        }
+      }
+    );
 
-          $(img).attr(
-            "src",
-            `https://girlswithwine.com/uploads/girls/${fileName}`
-          );
+    await Promise.all(
+      tasks
+    );
 
-          resolve();
+    return $.html();
+  };
 
-        })
-      );
-    }
-  });
-
-  await Promise.all(tasks);
-
-  return $.html();
-};
-
-/* =============================
+/* =========================================
    ADD GIRL
-============================= */
+========================================= */
 
-export const addGirl = async (req, res) => {
+export const addGirl =
+  async (req, res) => {
 
-  try {
+    try {
 
-    let imageUrl = "";
-
-    let images = [];
-
-    /* =========================================
-       SINGLE IMAGE
-    ========================================= */
-
-    if (req.files?.image) {
-
-      imageUrl =
-        `https://girlswithwine.com/uploads/girls/${req.files.image[0].filename}`;
-    }
-
-    /* =========================================
-       MULTIPLE IMAGES
-    ========================================= */
-
-    if (req.files?.images) {
-
-      images = req.files.images.map(
-        (file) =>
-          `https://girlswithwine.com/uploads/girls/${file.filename}`
-      );
-    }
-
-    /* =========================================
-       PROCESS EDITOR IMAGES
-    ========================================= */
-
-    const description =
-      await processEditorImages(
-        req.body.description
+      console.log(
+        "BODY =>",
+        req.body
       );
 
-    /* =========================================
-       CREATE GIRL
-    ========================================= */
+      console.log(
+        "FILES =>",
+        req.files
+      );
 
-    const girl = await Girl.create({
+      let imageUrl = "";
 
-      name: req.body.name,
+      let images = [];
 
-      age: req.body.age,
+      /* =========================================
+         SINGLE IMAGE
+      ========================================= */
 
-      heading: req.body.heading,
+      if (
+        req.files &&
+        req.files.image
+      ) {
 
-      city: parseCity(req.body.city),
+        const file =
+          req.files.image;
 
-      subCity: req.body.subCity || null,
+        const uploaded =
+          await cloudinary.uploader.upload(
+            file.tempFilePath,
+            {
+              folder:
+                "girls/main",
+            }
+          );
 
-      permalink:
-        req.body.permalink ||
-        req.body.name,
+        imageUrl =
+          convertCloudinaryUrl(
+            uploaded.secure_url
+          );
+      }
 
-      description,
+      /* =========================================
+         MULTIPLE IMAGES
+      ========================================= */
 
-      imageUrl,
+      if (
+        req.files &&
+        req.files.images
+      ) {
 
-      images,
+        const files =
+          Array.isArray(
+            req.files.images
+          )
+            ? req.files.images
+            : [req.files.images];
 
-      imageAlt: req.body.imageAlt,
+        const uploadedImages =
+          await Promise.all(
 
-      /* SEO */
-
-      seoTitle: req.body.seoTitle,
-
-      seoDescription:
-        req.body.seoDescription,
-
-      seoKeywords:
-        req.body.seoKeywords?.split(",") || [],
-
-      /* OG SEO */
-
-      ogTitle: req.body.ogTitle,
-
-      ogDescription:
-        req.body.ogDescription,
-
-      twitterTitle:
-        req.body.twitterTitle,
-
-      twitterDescription:
-        req.body.twitterDescription,
-
-      facebookTitle:
-        req.body.facebookTitle,
-
-      facebookDescription:
-        req.body.facebookDescription,
-
-      /* PHONE */
-
-      phoneNumber:
-        formatNumber(
-          req.body.phoneNumber
-        ),
-
-      whatsappNumber:
-        req.body.whatsappNumber
-          ? formatNumber(
-              req.body.whatsappNumber
+            files.map(
+              (file) =>
+                cloudinary.uploader.upload(
+                  file.tempFilePath,
+                  {
+                    folder:
+                      "girls/gallery",
+                  }
+                )
             )
-          : undefined,
+          );
 
-      showOnHomepage:
-        req.body.showOnHomepage === "true",
-    });
+        images =
+          uploadedImages.map(
+            (img) =>
+              convertCloudinaryUrl(
+                img.secure_url
+              )
+          );
+      }
 
-    res.status(201).json({
-      success: true,
-      message: "Girl created successfully",
-      data: girl,
-    });
+      /* =========================================
+         DESCRIPTION
+      ========================================= */
 
-  } catch (err) {
+      const description =
+        await processEditorImages(
+          req.body
+            .description
+        );
 
-    console.error(err);
+      /* =========================================
+         CREATE GIRL
+      ========================================= */
 
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
+      const girl =
+        await Girl.create({
 
-/* =============================
-   UPDATE GIRL
-============================= */
+          name:
+            req.body.name,
 
-export const updateGirl = async (req, res) => {
+          age:
+            req.body.age,
 
-  try {
+          heading:
+            req.body.heading,
 
-    const existing =
-      await Girl.findById(req.params.id);
+          city:
+            parseCity(
+              req.body.city
+            ),
 
-    if (!existing) {
+          subCity:
+            req.body.subCity ||
+            null,
 
-      return res.status(404).json({
-        message: "Girl not found",
+          permalink:
+            req.body.permalink ||
+            req.body.name,
+
+          description,
+
+          imageUrl,
+
+          images,
+
+          imageAlt:
+            req.body.imageAlt,
+
+          /* SEO */
+
+          seoTitle:
+            req.body
+              .seoTitle,
+
+          seoDescription:
+            req.body
+              .seoDescription,
+
+          seoKeywords:
+            req.body
+              .seoKeywords
+              ?.split(",") ||
+            [],
+
+          /* OG SEO */
+
+          ogTitle:
+            req.body
+              .ogTitle,
+
+          ogDescription:
+            req.body
+              .ogDescription,
+
+          twitterTitle:
+            req.body
+              .twitterTitle,
+
+          twitterDescription:
+            req.body
+              .twitterDescription,
+
+          facebookTitle:
+            req.body
+              .facebookTitle,
+
+          facebookDescription:
+            req.body
+              .facebookDescription,
+
+          /* PHONE */
+
+          phoneNumber:
+            formatNumber(
+              req.body
+                .phoneNumber
+            ),
+
+          whatsappNumber:
+            req.body
+              .whatsappNumber
+              ? formatNumber(
+                  req.body
+                    .whatsappNumber
+                )
+              : undefined,
+
+          showOnHomepage:
+            req.body
+              .showOnHomepage ===
+            "true",
+        });
+
+      res.status(201).json({
+        success: true,
+        message:
+          "Girl created successfully",
+        data: girl,
+      });
+
+    } catch (err) {
+
+      console.error(err);
+
+      res.status(500).json({
+        success: false,
+        message:
+          err.message,
       });
     }
+  };
 
-    let imageUrl =
-      existing.imageUrl;
+/* =========================================
+   UPDATE GIRL
+========================================= */
 
-    let images =
-      existing.images || [];
+export const updateGirl =
+  async (req, res) => {
 
-    /* =========================================
-       SINGLE IMAGE
-    ========================================= */
+    try {
 
-    if (req.files?.image) {
+      const existing =
+        await Girl.findById(
+          req.params.id
+        );
 
-      imageUrl =
-        `https://girlswithwine.com/uploads/girls/${req.files.image[0].filename}`;
-    }
+      if (!existing) {
 
-    /* =========================================
-       MULTIPLE IMAGES
-    ========================================= */
+        return res.status(
+          404
+        ).json({
+          success: false,
+          message:
+            "Girl not found",
+        });
+      }
 
-    if (req.files?.images) {
+      let imageUrl =
+        existing.imageUrl;
 
-      images = req.files.images.map(
-        (file) =>
-          `https://girlswithwine.com/uploads/girls/${file.filename}`
-      );
-    }
+      let images =
+        existing.images ||
+        [];
 
-    /* =========================================
-       DESCRIPTION
-    ========================================= */
+      /* =========================================
+         SINGLE IMAGE
+      ========================================= */
 
-    const description =
-      req.body.description
-        ? await processEditorImages(
-            req.body.description
+      if (
+        req.files &&
+        req.files.image
+      ) {
+
+        const file =
+          req.files.image;
+
+        const uploaded =
+          await cloudinary.uploader.upload(
+            file.tempFilePath,
+            {
+              folder:
+                "girls/main",
+            }
+          );
+
+        imageUrl =
+          convertCloudinaryUrl(
+            uploaded.secure_url
+          );
+      }
+
+      /* =========================================
+         MULTIPLE IMAGES
+      ========================================= */
+
+      if (
+        req.files &&
+        req.files.images
+      ) {
+
+        const files =
+          Array.isArray(
+            req.files.images
           )
-        : existing.description;
+            ? req.files.images
+            : [req.files.images];
 
-    /* =========================================
-       UPDATE DATA
-    ========================================= */
+        const uploadedImages =
+          await Promise.all(
 
-    const updateData = {
-
-      name: req.body.name,
-
-      age: req.body.age,
-
-      heading: req.body.heading,
-
-      city: parseCity(req.body.city),
-
-      subCity:
-        req.body.subCity &&
-        req.body.subCity !== "" &&
-        req.body.subCity !== "null"
-          ? req.body.subCity
-          : null,
-
-      permalink:
-        req.body.permalink,
-
-      description,
-
-      imageUrl,
-
-      images,
-
-      imageAlt:
-        req.body.imageAlt,
-
-      seoTitle:
-        req.body.seoTitle,
-
-      seoDescription:
-        req.body.seoDescription,
-
-      seoKeywords:
-        req.body.seoKeywords?.split(",") || [],
-
-      ogTitle:
-        req.body.ogTitle,
-
-      ogDescription:
-        req.body.ogDescription,
-
-      twitterTitle:
-        req.body.twitterTitle,
-
-      twitterDescription:
-        req.body.twitterDescription,
-
-      facebookTitle:
-        req.body.facebookTitle,
-
-      facebookDescription:
-        req.body.facebookDescription,
-
-      phoneNumber:
-        formatNumber(
-          req.body.phoneNumber
-        ),
-
-      whatsappNumber:
-        req.body.whatsappNumber
-          ? formatNumber(
-              req.body.whatsappNumber
+            files.map(
+              (file) =>
+                cloudinary.uploader.upload(
+                  file.tempFilePath,
+                  {
+                    folder:
+                      "girls/gallery",
+                  }
+                )
             )
-          : undefined,
+          );
 
-      showOnHomepage:
-        req.body.showOnHomepage === "true",
-    };
+        images =
+          uploadedImages.map(
+            (img) =>
+              convertCloudinaryUrl(
+                img.secure_url
+              )
+          );
+      }
 
-    const updated =
-      await Girl.findByIdAndUpdate(
-        req.params.id,
-        updateData,
-        {
-          new: true,
-          runValidators: true,
-        }
-      )
-        .populate("city")
-        .populate("subCity");
+      /* =========================================
+         DESCRIPTION
+      ========================================= */
 
-    res.json({
-      success: true,
-      message: "Girl updated successfully",
-      data: updated,
-    });
+      const description =
+        req.body
+          .description
+          ? await processEditorImages(
+              req.body
+                .description
+            )
+          : existing.description;
 
-  } catch (err) {
+      /* =========================================
+         UPDATE DATA
+      ========================================= */
 
-    console.error(err);
+      const updateData = {
 
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
+        name:
+          req.body.name,
+
+        age:
+          req.body.age,
+
+        heading:
+          req.body.heading,
+
+        city:
+          parseCity(
+            req.body.city
+          ),
+
+        subCity:
+          req.body.subCity &&
+          req.body.subCity !==
+            "" &&
+          req.body.subCity !==
+            "null"
+            ? req.body.subCity
+            : null,
+
+        permalink:
+          req.body
+            .permalink,
+
+        description,
+
+        imageUrl,
+
+        images,
+
+        imageAlt:
+          req.body.imageAlt,
+
+        seoTitle:
+          req.body
+            .seoTitle,
+
+        seoDescription:
+          req.body
+            .seoDescription,
+
+        seoKeywords:
+          req.body
+            .seoKeywords
+            ?.split(",") ||
+          [],
+
+        ogTitle:
+          req.body.ogTitle,
+
+        ogDescription:
+          req.body
+            .ogDescription,
+
+        twitterTitle:
+          req.body
+            .twitterTitle,
+
+        twitterDescription:
+          req.body
+            .twitterDescription,
+
+        facebookTitle:
+          req.body
+            .facebookTitle,
+
+        facebookDescription:
+          req.body
+            .facebookDescription,
+
+        phoneNumber:
+          formatNumber(
+            req.body
+              .phoneNumber
+          ),
+
+        whatsappNumber:
+          req.body
+            .whatsappNumber
+            ? formatNumber(
+                req.body
+                  .whatsappNumber
+              )
+            : undefined,
+
+        showOnHomepage:
+          req.body
+            .showOnHomepage ===
+          "true",
+      };
+
+      const updated =
+        await Girl.findByIdAndUpdate(
+          req.params.id,
+          updateData,
+          {
+            new: true,
+            runValidators:
+              true,
+          }
+        )
+
+          .populate("city")
+
+          .populate(
+            "subCity"
+          );
+
+      res.json({
+        success: true,
+        message:
+          "Girl updated successfully",
+        data: updated,
+      });
+
+    } catch (err) {
+
+      console.error(err);
+
+      res.status(500).json({
+        success: false,
+        message:
+          err.message,
+      });
+    }
+  };
+
 /* =============================
    GET ALL GIRLS
 ============================= */
 
-export const getAllGirls = async (req, res) => {
-  try {
-    const girls = await Girl.find()
-      .populate({
-        path: "city",
-      })
-      .sort({ createdAt: -1 });
+export const getAllGirls =
+  async (req, res) => {
 
-    res.json({
-      data: girls,
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+    try {
+
+      const girls =
+        await Girl.find()
+
+          .populate({
+            path: "city",
+          })
+
+          .sort({
+            createdAt: -1,
+          });
+
+      res.json({
+        data: girls,
+      });
+
+    } catch (error) {
+
+      res.status(500).json({
+        message:
+          error.message,
+      });
+    }
+  };
 
 /* =============================
    GET BY ID
 ============================= */
 
-export const getGirlById = async (req, res) => {
-  try {
-    const girl = await Girl.findById(req.params.id)
-      .populate("city")
-      .populate("subCity");
+export const getGirlById =
+  async (req, res) => {
 
-    if (!girl) return res.status(404).json({ message: "Not found" });
+    try {
 
-    res.json(girl);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
+      const girl =
+        await Girl.findById(
+          req.params.id
+        )
+
+          .populate("city")
+
+          .populate(
+            "subCity"
+          );
+
+      if (!girl) {
+
+        return res.status(
+          404
+        ).json({
+          message:
+            "Not found",
+        });
+      }
+
+      res.json(girl);
+
+    } catch (err) {
+
+      res.status(500).json({
+        message:
+          err.message,
+      });
+    }
+  };
 
 /* =============================
    GET BY CITY
 ============================= */
 
-export const getGirlsByCity = async (req, res) => {
-  try {
-    const girls = await Girl.find({
-      city: req.params.cityId,
-      status: "Active",
-    })
-      .populate("city")
-      .populate("subCity");
+export const getGirlsByCity =
+  async (req, res) => {
 
-    res.json(girls);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
+    try {
+
+      const girls =
+        await Girl.find({
+          city:
+            req.params.cityId,
+          status: "Active",
+        })
+
+          .populate("city")
+
+          .populate(
+            "subCity"
+          );
+
+      res.json(girls);
+
+    } catch (err) {
+
+      res.status(500).json({
+        message:
+          err.message,
+      });
+    }
+  };
 
 /* =============================
-   ✅ GET BY SUBCITY (NEW)
+   GET BY SUBCITY
 ============================= */
 
-export const getGirlsBySubCity = async (req, res) => {
-  try {
-    const girls = await Girl.find({
-      subCity: req.params.subCityId,
-      status: "Active",
-    })
-      .populate("city")
-      .populate("subCity");
+export const getGirlsBySubCity =
+  async (req, res) => {
 
-    res.json(girls);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
+    try {
 
+      const girls =
+        await Girl.find({
+          subCity:
+            req.params
+              .subCityId,
+          status: "Active",
+        })
 
+          .populate("city")
+
+          .populate(
+            "subCity"
+          );
+
+      res.json(girls);
+
+    } catch (err) {
+
+      res.status(500).json({
+        message:
+          err.message,
+      });
+    }
+  };
 
 /* =============================
    DELETE
 ============================= */
 
-export const deleteGirl = async (req, res) => {
-  await Girl.findByIdAndDelete(req.params.id);
-  res.json({ message: "Deleted" });
-};
+export const deleteGirl =
+  async (req, res) => {
+
+    try {
+
+      await Girl.findByIdAndDelete(
+        req.params.id
+      );
+
+      res.json({
+        success: true,
+        message:
+          "Deleted",
+      });
+
+    } catch (error) {
+
+      res.status(500).json({
+        success: false,
+        message:
+          error.message,
+      });
+    }
+  };
 
 /* =============================
    STATUS
 ============================= */
 
-export const toggleGirlStatus = async (req, res) => {
-  const girl = await Girl.findById(req.params.id);
-  girl.status = girl.status === "Active" ? "Inactive" : "Active";
-  await girl.save();
+export const toggleGirlStatus =
+  async (req, res) => {
 
-  res.json(girl);
-};
+    try {
 
-// =============================
-// GET GIRL BY PERMALINK (SEO)
-// =============================
-export const getGirlByPermalink = async (req, res) => {
-  try {
-    const { permalink } = req.params;
+      const girl =
+        await Girl.findById(
+          req.params.id
+        );
 
-    const girl = await Girl.findOne({
-      permalink,
-      status: "Active"
-    })
-      .populate("city")
-      .populate("subCity");
+      if (!girl) {
 
-    if (!girl) {
-      return res.status(404).json({ message: "Girl not found" });
+        return res.status(
+          404
+        ).json({
+          success: false,
+          message:
+            "Girl not found",
+        });
+      }
+
+      girl.status =
+        girl.status ===
+        "Active"
+          ? "Inactive"
+          : "Active";
+
+      await girl.save();
+
+      res.json(girl);
+
+    } catch (error) {
+
+      res.status(500).json({
+        success: false,
+        message:
+          error.message,
+      });
     }
+  };
 
-    res.json(girl);
+/* =============================
+   GET GIRL BY PERMALINK
+============================= */
 
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+export const getGirlByPermalink =
+  async (req, res) => {
 
+    try {
 
-// =============================
-// GET GIRL BY SLUG (OPTIONAL)
-// =============================
-export const getGirlBySlug = async (req, res) => {
-  try {
-    const { seoSlug } = req.params;
+      const {
+        permalink,
+      } = req.params;
 
-    const girl = await Girl.findOne({
-      permalink: seoSlug
-    })
-      .populate("city")
-      .populate("subCity");
+      const girl =
+        await Girl.findOne({
+          permalink,
+          status: "Active",
+        })
 
-    if (!girl) {
-      return res.status(404).json({ message: "Girl not found" });
+          .populate("city")
+
+          .populate(
+            "subCity"
+          );
+
+      if (!girl) {
+
+        return res.status(
+          404
+        ).json({
+          success: false,
+          message:
+            "Girl not found",
+        });
+      }
+
+      res.json(girl);
+
+    } catch (error) {
+
+      res.status(500).json({
+        success: false,
+        message:
+          error.message,
+      });
     }
+  };
 
-    res.json(girl);
+/* =============================
+   GET GIRL BY SLUG
+============================= */
 
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+export const getGirlBySlug =
+  async (req, res) => {
+
+    try {
+
+      const {
+        seoSlug,
+      } = req.params;
+
+      const girl =
+        await Girl.findOne({
+          permalink:
+            seoSlug,
+        })
+
+          .populate("city")
+
+          .populate(
+            "subCity"
+          );
+
+      if (!girl) {
+
+        return res.status(
+          404
+        ).json({
+          success: false,
+          message:
+            "Girl not found",
+        });
+      }
+
+      res.json(girl);
+
+    } catch (error) {
+
+      res.status(500).json({
+        success: false,
+        message:
+          error.message,
+      });
+    }
+  };
