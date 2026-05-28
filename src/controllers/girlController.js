@@ -890,34 +890,29 @@ export const getGirlById =
    GET BY CITY
 ============================= */
 
-export const getGirlsByCity =
-  async (req, res) => {
-
-    try {
-
-      const girls =
-        await Girl.find({
-          city:
-            req.params.cityId,
-          status: "Active",
-        })
-
-          .populate("city")
-
-          .populate(
-            "subCity"
-          );
-
-      res.json(girls);
-
-    } catch (err) {
-
-      res.status(500).json({
-        message:
-          err.message,
+export const getGirlsByCity = async (req, res) => {
+  try {
+    const girls = await Girl.find({
+      city: req.params.cityId,
+      status: "Active",
+    })
+      .populate({
+        path: "city",
+        select: "_id",
+      })
+      .populate({
+        path: "subCity",
+        select: "_id",
       });
-    }
-  };
+
+    res.json(girls);
+
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+};
 
 /* =============================
    GET BY SUBCITY

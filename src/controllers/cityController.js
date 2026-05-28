@@ -418,17 +418,35 @@ export const getCityPage =
    GET ALL CITIES
 ========================================= */
 
+
+
 export const getCities =
   async (req, res) => {
 
     try {
 
       const cities =
-        await City.find().sort({
-          createdAt: -1,
-        });
+        await City.find(
+          {},
+          {
+            mainCity: 1,
+            heading: 1,
+            imageUrl: 1,
+            status: 1,
+            createdAt: 1,
+            phoneNumber: 1,
+            whatsappNumber: 1,
+          }
+        )
+          .lean()
+          .sort({
+            createdAt: -1,
+          });
 
-      res.json(cities);
+      res.json({
+        success: true,
+        data: cities,
+      });
 
     } catch (error) {
 
