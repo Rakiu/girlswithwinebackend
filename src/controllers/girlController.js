@@ -889,64 +889,59 @@ export const getGirlById =
 /* =============================
    GET BY CITY
 ============================= */
-
 export const getGirlsByCity = async (req, res) => {
   try {
     const girls = await Girl.find({
       city: req.params.cityId,
       status: "Active",
     })
-      .populate({
-        path: "city",
-        select: "_id",
-      })
-      .populate({
-        path: "subCity",
-        select: "_id",
-      });
+      .select(
+        "heading age description imageUrl imageAlt phoneNumber whatsappNumber permalink"
+      )
+      .lean();
 
-    res.json(girls);
+    res.json({
+      success: true,
+      data: girls,
+    });
 
   } catch (err) {
     res.status(500).json({
+      success: false,
       message: err.message,
     });
   }
 };
 
+
+
 /* =============================
    GET BY SUBCITY
 ============================= */
 
-export const getGirlsBySubCity =
-  async (req, res) => {
+export const getGirlsBySubCity = async (req, res) => {
+  try {
+    const girls = await Girl.find({
+      subCity: req.params.subCityId,
+      status: "Active",
+    })
+      .select(
+        "heading age description imageUrl imageAlt phoneNumber whatsappNumber permalink"
+      )
+      .lean();
 
-    try {
+    res.json({
+      success: true,
+      data: girls,
+    });
 
-      const girls =
-        await Girl.find({
-          subCity:
-            req.params
-              .subCityId,
-          status: "Active",
-        })
-
-          .populate("city")
-
-          .populate(
-            "subCity"
-          );
-
-      res.json(girls);
-
-    } catch (err) {
-
-      res.status(500).json({
-        message:
-          err.message,
-      });
-    }
-  };
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
 
 /* =============================
    DELETE
