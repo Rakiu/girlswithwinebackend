@@ -891,20 +891,40 @@ export const getGirlById =
 ============================= */
 export const getGirlsByCity = async (req, res) => {
   try {
-    const girls = await Girl.find({
+    const page = parseInt(req.query.page) || 1;
+    const limit = 5;
+    const skip = (page - 1) * limit;
+
+    const filter = {
       city: req.params.cityId,
       status: "Active",
-    })
-      .select(
-        "heading age description imageUrl imageAlt phoneNumber whatsappNumber permalink"
-      )
-      .lean();
+    };
+
+    const [girls, total] = await Promise.all([
+      Girl.find(filter)
+        .select(
+          "heading age description imageUrl imageAlt phoneNumber whatsappNumber permalink"
+        )
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+
+      Girl.countDocuments(filter),
+    ]);
 
     res.json({
       success: true,
       data: girls,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalRecords: total,
+        limit,
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1,
+      },
     });
-
   } catch (err) {
     res.status(500).json({
       success: false,
@@ -921,20 +941,40 @@ export const getGirlsByCity = async (req, res) => {
 
 export const getGirlsBySubCity = async (req, res) => {
   try {
-    const girls = await Girl.find({
+    const page = parseInt(req.query.page) || 1;
+    const limit = 5;
+    const skip = (page - 1) * limit;
+
+    const filter = {
       subCity: req.params.subCityId,
       status: "Active",
-    })
-      .select(
-        "heading age description imageUrl imageAlt phoneNumber whatsappNumber permalink"
-      )
-      .lean();
+    };
+
+    const [girls, total] = await Promise.all([
+      Girl.find(filter)
+        .select(
+          "heading age description imageUrl imageAlt phoneNumber whatsappNumber permalink"
+        )
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+
+      Girl.countDocuments(filter),
+    ]);
 
     res.json({
       success: true,
       data: girls,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalRecords: total,
+        limit,
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1,
+      },
     });
-
   } catch (err) {
     res.status(500).json({
       success: false,
